@@ -27,6 +27,24 @@ do
 		RichTextMessageOptions[ Plugin.TeleportMessageKeys[ i ] ] = TargetMessageOptions
 	end
 
+	RichTextMessageOptions[ "TELEPORTED_GOTO_LOCATION" ] = {
+		Colours = {
+			LocationID = RichTextFormat.Colours.LightBlue
+		}
+	}
+	RichTextMessageOptions[ "TELEPORTED_SENT_TO" ] = {
+		Colours = {
+			SourceName = function( Values ) return RichTextFormat.GetColourForPlayer( Values.SourceName ) end,
+			TargetName = GetColourForName
+		}
+	}
+	RichTextMessageOptions[ "TELEPORTED_SENT_TO_LOCATION" ] = {
+		Colours = {
+			TargetName = GetColourForName,
+			LocationID = RichTextFormat.Colours.LightBlue
+		}
+	}
+
 	local ActionMessageOptions = {
 		Colours = {
 			TargetCount = RichTextFormat.Colours.LightBlue
@@ -61,4 +79,11 @@ function Plugin:SetupAdminMenuCommands()
 		self:GetPhrase( "ENABLE" ), "true",
 		self:GetPhrase( "DISABLE" ), "false"
 	}, self:GetPhrase( "DARWIN_MODE_TIP" ) )
+end
+
+function Plugin:PreProcessTranslatedMessage( Name, Data )
+	if Data.LocationID then
+		Data.LocationID = Shared.GetString( Data.LocationID )
+	end
+	return Data
 end
