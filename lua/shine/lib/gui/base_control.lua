@@ -915,14 +915,30 @@ SGUI.AddProperty( ControlMeta, "Layout" )
 ]]
 function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	self.Layout = Layout
+
 	if Layout then
 		Layout:SetParent( self )
+
+		-- Make the element's content size reflect its layout's, as this is more accurate than manually summing/maxing
+		-- over each element (and avoids computing the same thing twice).
+		if self.GetContentSizeForAxis == ControlMeta.GetContentSizeForAxis then
+			self.GetContentSizeForAxis = self.GetContentSizeForAxisFromLayout
+		end
+	elseif self.GetContentSizeForAxis == ControlMeta.GetContentSizeForAxisFromLayout then
+		self.GetContentSizeForAxis = nil
 	end
+
 	self:InvalidateLayout( not DeferInvalidation )
 end
 
 function ControlMeta:GetAvailableLayoutSize()
 	return self:GetSize()
+end
+
+local function GetLayoutSpacing( self )
+	local Margin = self.Layout:GetComputedMargin()
+	local Padding = self:GetComputedPadding()
+	return Margin, Padding
 end
 
 --[[
@@ -935,8 +951,7 @@ function ControlMeta:PerformLayout()
 
 	if not self.Layout then return end
 
-	local Margin = self.Layout:GetComputedMargin()
-	local Padding = self:GetComputedPadding()
+	local Margin, Padding = GetLayoutSpacing( self )
 	local Size = self:GetAvailableLayoutSize()
 
 	self.Layout:SetPos( Vector2( Margin[ 1 ] + Padding[ 1 ], Margin[ 2 ] + Padding[ 2 ] ) )
@@ -961,14 +976,18 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 
 		local Width = Child:GetComputedSize( 1, Size.x )
 
+		-- As in layouts, set the width upfront to avoid needing to auto-wrap twice.
+		local ChildSize = Vector2( Width, Child:GetSize().y )
+		Child:SetLayoutSize( ChildSize )
+
 		Child:PreComputeHeight( Width )
 
-		local ChildSize = Vector2( Width, Child:GetComputedSize( 2, Size.y ) )
+		ChildSize.y = Child:GetComputedSize( 2, Size.y )
 		Child:SetLayoutSize( ChildSize )
 
 		local Pos = Child:ComputeAbsolutePosition( Size )
 		Child:SetLayoutPos( Pos )
-		Child:InvalidateLayout( true )
+		Child:HandleLayout( 0 )
 	end
 end
 
@@ -1001,11 +1020,6 @@ function ControlMeta:InvalidateLayout( Now )
 	if Now then
 		self.LayoutIsInvalid = false
 		self:PerformLayout()
-
-		if self.Layout then
-			self.Layout:InvalidateLayout( true )
-		end
-
 		return
 	end
 
@@ -1633,6 +1647,13 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 	return Max( Total, 0 )
 end
 
+function ControlMeta:GetContentSizeForAxisFromLayout( Axis )
+	self:HandleLayout( 0 )
+
+	local Margin, Padding = GetLayoutSpacing( self )
+	return Padding[ Axis + 4 ] + Margin[ Axis + 4 ] + self.Layout:GetContentSizeForAxis( Axis )
+end
+
 -- You can either use AutoSize as part of a layout, or on its own by passing true for UpdateNow.
 function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 	self.AutoSize = AutoSize
@@ -1644,23 +1665,30 @@ function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ), self:GetComputedSize( 2, ParentSize.y ) ) )
 end
 
--- Called before a layout computes the current width of the element.
-function ControlMeta:PreComputeWidth()
-	if not self.AutoFont then return end
+do
+	local function SuppressInvalidation() end
 
-	local FontFamily = self.AutoFont.Family
-	local Size = self.AutoFont.Size:GetValue()
+	-- Called before a layout computes the current width of the element.
+	function ControlMeta:PreComputeWidth()
+		if not self.AutoFont then return end
 
-	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size, self.GetText and self:GetText() ) )
-end
+		local FontFamily = self.AutoFont.Family
+		local Size = self.AutoFont.Size:GetValue()
 
--- Called before a layout computes the current height of the element.
--- Override to add wrapping logic.
-function ControlMeta:PreComputeHeight( Width )
-	if not self.AspectRatio or not self.AutoSize then return end
+		-- Suppress invalidating the parent element as it'll see the size change immediately here.
+		self.InvalidateParent = SuppressInvalidation
+		self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size, self.GetText and self:GetText() ) )
+		self.InvalidateParent = nil
+	end
 
-	-- Make height always relative to width.
-	self.AutoSize[ 2 ] = SGUI.Layout.Units.Absolute( Width * self.AspectRatio )
+	-- Called before a layout computes the current height of the element.
+	-- Override to add wrapping logic.
+	function ControlMeta:PreComputeHeight( Width )
+		if not self.AspectRatio or not self.AutoSize then return end
+
+		-- Make height always relative to width.
+		self.AutoSize[ 2 ] = SGUI.Layout.Units.Absolute( Width * self.AspectRatio )
+	end
 end
 
 --[[

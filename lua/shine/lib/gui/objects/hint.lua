@@ -41,6 +41,7 @@ function Hint:Initialise()
 					ID = "Flair",
 					Class = "Image",
 					Props = {
+						AutoSize = UnitVector( self.FlairWidth, Percentage.ONE_HUNDRED ),
 						IsSchemed = false
 					}
 				},
@@ -71,15 +72,8 @@ function Hint:Initialise()
 		}
 	} )
 
-	-- Make the flair as big as the text contents without using percentage to avoid a cyclic height calculation.
-	Elements.Flair:SetAutoSize( UnitVector( self.FlairWidth, Units.Auto( Elements.HelpTextContainer ) ) )
-
 	self.Flair = Elements.Flair
 	self.HelpText = Elements.HelpText
-end
-
-function Hint:GetContentSizeForAxis( Axis )
-	return self.Layout:GetContentSizeForAxis( Axis )
 end
 
 function Hint:SetFlairWidth( FlairWidth )

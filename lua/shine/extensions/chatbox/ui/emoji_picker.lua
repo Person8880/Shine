@@ -91,7 +91,7 @@ function EmojiRow:SetContents( Contents )
 			end
 		end
 
-		self:InvalidateLayout( true )
+		self:InvalidateLayout()
 
 		return
 	end
@@ -125,7 +125,7 @@ function EmojiRow:SetContents( Contents )
 		end
 	end
 
-	self:InvalidateLayout( true )
+	self:InvalidateLayout()
 end
 
 local function AddEmojiRows( EmojiList, NumEmojiPerRow, Rows, RowCount )

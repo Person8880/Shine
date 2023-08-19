@@ -25,10 +25,6 @@ function Row:SetPadding( Padding )
 	self.Layout:SetPadding( Padding )
 end
 
-function Row:GetContentSizeForAxis( Axis )
-	return self.Layout:GetContentSizeForAxis( Axis )
-end
-
 function Row:GetMaxSizeAlongAxis( Axis )
 	return self.Layout:GetMaxSizeAlongAxis( Axis )
 end

@@ -31,9 +31,14 @@ local function MarkSizeDirty( self )
 	self:InvalidateMouseState()
 end
 
+local function InvalidateWrappedWidth( self )
+	self.LastWrappedWidth = nil
+end
+
 do
 	local function SetupElementForFontName( self, Font )
 		SGUI.FontManager.SetupElementForFontName( self.Label, Font )
+		InvalidateWrappedWidth( self )
 	end
 
 	function Label:Initialise()
@@ -53,6 +58,7 @@ do
 
 		self:AddPropertyChangeListener( "Text", self.EvaluateOptionFlags )
 		self:AddPropertyChangeListener( "Font", SetupElementForFontName )
+		self:AddPropertyChangeListener( "TextScale", InvalidateWrappedWidth )
 	end
 end
 
@@ -63,6 +69,7 @@ function Label:EvaluateOptionFlags( Text )
 	else
 		self.Label:ClearOptionFlag( GUIItem.PerLineTextAlignment )
 	end
+	InvalidateWrappedWidth( self )
 end
 
 -- Sets whether the label should offset itself during layout to ensure alignment does not affect position.
@@ -148,6 +155,8 @@ end
 
 -- Apply word wrapping before the height is computed (assuming height = Units.Auto.INSTANCE).
 function Label:ApplyAutoWrapping( Width )
+	if self.LastWrappedWidth == Width then return end
+
 	local CurrentText = self.Label:GetText()
 
 	-- Pass in a dummy to avoid mutating the actual text value assigned to this label,
@@ -155,21 +164,10 @@ function Label:ApplyAutoWrapping( Width )
 	WordWrapDummy.Element = self
 	SGUI.WordWrap( WordWrapDummy, self.Text, 0, Width )
 
+	self.LastWrappedWidth = Width
+
 	if CurrentText ~= self.Label:GetText() then
 		MarkSizeDirty( self )
-
-		-- Look for the first ancestor whose height is not determined automatically, and invalidate it.
-		-- This ensures any change in height from wrapping the text is accounted for.
-		local Parent = self.Parent
-		while SGUI.IsValid( Parent ) do
-			local AutoSize = Parent:GetAutoSize()
-			if not AutoSize or getmetatable( AutoSize[ 2 ] ) ~= Units.Auto then
-				Parent:InvalidateLayout()
-				break
-			end
-
-			Parent = Parent.Parent
-		end
 	end
 end
 

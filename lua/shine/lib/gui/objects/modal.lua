@@ -173,14 +173,6 @@ function Modal:GetPos()
 	return Pos
 end
 
-function Modal:GetContentSizeForAxis( Axis )
-	local Size = self.Layout:GetContentSizeForAxis( Axis )
-	if SGUI.IsValid( self.TitleBar ) then
-		Size = Size + self.TitleBar:GetComputedSize( Axis, self:GetSizeForAxis( Axis ) )
-	end
-	return Size
-end
-
 function Modal:GetMaxSizeAlongAxis( Axis )
 	local MaxSize = self.Layout:GetMaxSizeAlongAxis( Axis )
 	if SGUI.IsValid( self.TitleBar ) then

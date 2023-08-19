@@ -57,6 +57,10 @@ function Vertical:GetElementSizeOffset( Size )
 	return 0, Size.y
 end
 
+function Vertical:GetCrossAxisSize( Size )
+	return Size.x
+end
+
 function Vertical:GetFillElementWidth( Element, Width, FillSizePerElement )
 	return Width
 end
@@ -65,13 +69,13 @@ function Vertical:GetFillElementHeight( Element, Height, FillSizePerElement )
 	return FillSizePerElement
 end
 
-function Vertical:GetFillElementSize( Element, Width, Height, FillSizePerElement )
-	return Vector2( Width, FillSizePerElement )
-end
-
 function Vertical:GetInitialBounds( MinX, MinY, MaxX, MaxY )
 	-- Start from min Y as this is vertical, but use the existing known maximum for X as it won't change.
 	return MaxX, MinY
+end
+
+function Vertical:ApplyCrossAxisSizeToContentSize( ContentWidth, ContentHeight, CrossAxisSize )
+	return CrossAxisSize, ContentHeight
 end
 
 local LayoutSizeChangeGetters = {
@@ -90,18 +94,6 @@ function Vertical:DoesSizeChangeRequireLayoutUpdate( Axis )
 	end
 
 	return false
-end
-
-local ContentSizes = {
-	function( self )
-		return self:GetMaxSizeAlongAxis( 1 )
-	end,
-	function( self )
-		return self.BaseClass.GetContentSizeForAxis( self, 2 )
-	end
-}
-function Vertical:GetContentSizeForAxis( Axis )
-	return ContentSizes[ Axis ]( self )
 end
 
 Shine.GUI.Layout:RegisterType( "Vertical", Vertical, "Directional" )

@@ -446,7 +446,7 @@ function MapVoteMenu:SetMaps( Maps )
 	for i = 1, #Maps do
 		local Entry = Maps[ i ]
 		local Tile = SGUI:CreateFromDefinition( MapTile, self.Elements.MapTileGrid )
-		Tile:SetDebugName( "MapVoteTile:%s/%s", Entry.ModID, Entry.MapName )
+		Tile:SetDebugName( StringFormat( "MapVoteTile:%s/%s", Entry.ModID, Entry.MapName ) )
 		Tile:SetMapVoteMenu( self )
 		Tile:SetSkin( Skin )
 		Tile:SetMap( Entry.ModID, Entry.MapName, Entry.PreviewName )

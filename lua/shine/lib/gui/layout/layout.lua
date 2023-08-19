@@ -21,7 +21,9 @@ BaseLayout.__index = BaseLayout
 BaseLayout.IsLayout = true
 
 SGUI.AddProperty( BaseLayout, "Parent" )
-SGUI.AddProperty( BaseLayout, "Pos" )
+-- Unlike elements, changing a layout's position does require re-evaluation, as it will change the calculated GUI tree
+-- position for all children.
+SGUI.AddProperty( BaseLayout, "Pos", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Fill", nil, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "AutoSize", nil, { "InvalidatesParent" } )
@@ -234,7 +236,8 @@ end
 
 function BaseLayout:__tostring()
 	return StringFormat(
-		"[SGUI] %s Layout | %d Children (%d Layout Children) | Attached to: [%s]",
+		"[SGUI - %s] %s Layout | %d Children (%d Layout Children) | Attached to: [%s]",
+		self.ID,
 		self.Class,
 		#self.Elements,
 		#self.LayoutChildren,
@@ -265,6 +268,7 @@ function Layout:RegisterUnit( Name, MetaTable )
 	self.Units[ Name ] = MetaTable
 end
 
+local LayoutID = 0
 function Layout:CreateLayout( Name, ... )
 	local MetaTable = self.Types[ Name ]
 	Shine.AssertAtLevel(
@@ -272,7 +276,9 @@ function Layout:CreateLayout( Name, ... )
 		"Attempted to construct unregistered or abstract layout type: %s", 3, Name
 	)
 
-	return setmetatable( { Class = Name }, self.Types[ Name ] ):Init( ... )
+	LayoutID = LayoutID + 1
+
+	return setmetatable( { Class = Name, ID = LayoutID }, self.Types[ Name ] ):Init( ... )
 end
 
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/layout/units" )

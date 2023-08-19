@@ -118,10 +118,6 @@ function CheckBoxWithLabel:SetPadding( Padding )
 	self.Layout:SetPadding( Padding )
 end
 
-function CheckBoxWithLabel:GetContentSizeForAxis( Axis )
-	return self.Layout:GetContentSizeForAxis( Axis )
-end
-
 function CheckBoxWithLabel:GetMaxSizeAlongAxis( Axis )
 	return self.Layout:GetMaxSizeAlongAxis( Axis )
 end

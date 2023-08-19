@@ -57,6 +57,10 @@ function Horizontal:GetElementSizeOffset( Size )
 	return Size.x, 0
 end
 
+function Horizontal:GetCrossAxisSize( Size )
+	return Size.y
+end
+
 function Horizontal:GetFillElementWidth( Element, Width, FillSizePerElement )
 	return FillSizePerElement
 end
@@ -65,14 +69,15 @@ function Horizontal:GetFillElementHeight( Element, Height, FillSizePerElement )
 	return Height
 end
 
-function Horizontal:GetFillElementSize( Element, Width, Height, FillSizePerElement )
-	return Vector2( FillSizePerElement, Height )
-end
-
 function Horizontal:GetInitialBounds( MinX, MinY, MaxX, MaxY )
 	-- Start from min X as this is horizontal, but use the existing known maximum for Y as it won't change.
 	return MinX, MaxY
 end
+
+function Horizontal:ApplyCrossAxisSizeToContentSize( ContentWidth, ContentHeight, CrossAxisSize )
+	return ContentWidth, CrossAxisSize
+end
+
 local LayoutSizeChangeGetters = {
 	function( Element ) return Element:GetAlignment() end,
 	function( Element ) return Element:GetCrossAxisAlignment() end
@@ -89,20 +94,6 @@ function Horizontal:DoesSizeChangeRequireLayoutUpdate( Axis )
 	end
 
 	return false
-end
-
-local ContentSizes = {
-	function( self )
-		-- This only makes sense if all elements are using the same alignment.
-		-- Otherwise the size returned will be larger than the actual size consumed.
-		return self.BaseClass.GetContentSizeForAxis( self, 1 )
-	end,
-	function( self )
-		return self:GetMaxSizeAlongAxis( 2 )
-	end
-}
-function Horizontal:GetContentSizeForAxis( Axis )
-	return ContentSizes[ Axis ]( self )
 end
 
 Shine.GUI.Layout:RegisterType( "Horizontal", Horizontal, "Directional" )

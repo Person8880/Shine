@@ -375,7 +375,6 @@ end
 
 SGUI:AddMixin( Button, "AutoSizeText" )
 
--- Override GetContentSizeForAxis to account for both an icon and a label.
 do
 	local LabelSizeMethod = {
 		"GetCachedTextWidth",
@@ -388,49 +387,20 @@ do
 		return Label[ LabelSizeMethod[ Axis ] ]( Label )
 	end
 
-	local function GetTotalSize( self, Axis )
+	function Button:GetContentSizeForAxis( Axis )
 		if self.Label then
 			-- Temporarily override the computed size to be based on the label's actual size to ensure the returned size
 			-- is based on the maximum size of the label. Label may be set to fill here for horizontal buttons.
 			self.Label.GetComputedSize = GetSize
 		end
 
-		local Size = self.Layout:GetContentSizeForAxis( Axis )
+		local Size = self:GetContentSizeForAxisFromLayout( Axis )
 
 		if self.Label then
 			self.Label.GetComputedSize = nil
 		end
 
-		if self.Padding then
-			Size = Size + self:GetComputedPadding()[ Axis + 4 ]
-		end
-
 		return Size
-	end
-
-	local function GetMaxSize( self, Axis )
-		local Size = Max( 0, GetSize( self.Label, Axis ), GetSize( self.Icon, Axis ) )
-		if self.Padding then
-			Size = Size + self:GetComputedPadding()[ Axis + 4 ]
-		end
-		return Size
-	end
-
-	local ContentSizeHandlers = {
-		[ true ] = {
-			-- When horizontal, the width is the total but the height is just the max of the icon and label heights.
-			GetTotalSize,
-			GetMaxSize
-		},
-		[ false ] = {
-			-- When vertical, the width is the max of the icon and label widths, and the height is the total.
-			GetMaxSize,
-			GetTotalSize
-		}
-	}
-
-	function Button:GetContentSizeForAxis( Axis )
-		return ContentSizeHandlers[ self.Horizontal ][ Axis ]( self, Axis )
 	end
 end
 
