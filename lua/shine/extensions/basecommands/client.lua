@@ -16,6 +16,7 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local IsType = Shine.IsType
 local StringFind = string.find
 local StringMatch = string.match
 local StringFormat = string.format
@@ -302,6 +303,50 @@ function Plugin:SetupAdminMenuCommands()
 	SGUI.AddProperty( MapSummary, "MapName" )
 	SGUI.AddProperty( MapSummary, "IsMod" )
 
+	local KnownModTitles = {}
+	local function GetModTitles( ModIDs, OnRetrieved )
+		local Titles = {}
+		local ModsToLookup = {}
+
+		for i = 1, #ModIDs do
+			local ModID = ModIDs[ i ]
+			if KnownModTitles[ ModID ] ~= nil then
+				Titles[ ModID ] = KnownModTitles[ ModID ]
+			else
+				ModsToLookup[ #ModsToLookup + 1 ] = ModID
+			end
+		end
+
+		if #ModsToLookup == 0 then return OnRetrieved( Titles ) end
+
+		local Params = {
+			publishedfileids = ModsToLookup
+		}
+		Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
+			OnSuccess = function( PublishedFileDetails, RequestError )
+				if RequestError or not PublishedFileDetails then return end
+
+				for i = 1, #PublishedFileDetails do
+					local File = PublishedFileDetails[ i ]
+					local FileID = tonumber( File.publishedfileid )
+					if FileID and IsType( File.title, "string" ) then
+						Titles[ FileID ] = File.title
+						KnownModTitles[ FileID ] = File.title
+					end
+				end
+
+				for i = 1, #ModsToLookup do
+					-- Prevent looking up unavailable/deleted mods multiple times.
+					if not Titles[ ModsToLookup[ i ] ] then
+						KnownModTitles[ ModsToLookup[ i ] ] = false
+					end
+				end
+
+				return OnRetrieved( Titles )
+			end
+		} )
+	end
+
 	function MapSummary:SetMapData( MapData )
 		self:Clear()
 		self:SetShader( SGUI.Shaders.Invisible )
@@ -480,28 +525,36 @@ function Plugin:SetupAdminMenuCommands()
 				}
 			}
 
-			for i = 1, #MapData.Mods do
+			for i = 1, NumMods do
 				local ModID = MapData.Mods[ i ]
 				Tree[ #Tree + 1 ] = {
 					Class = "Row",
 					Props = {
 						Alignment = Alignment,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-						AutoSize = UnitVector( Auto.INSTANCE, Auto.INSTANCE )
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto.INSTANCE )
 					},
 					Children = {
 						{
 							Class = "Label",
 							Props = {
+								Alignment = SGUI.LayoutAlignment.CENTRE,
 								AutoFont = Ionicons,
 								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
 								Text = SGUI.Icons.Ionicons.Wrench
 							}
 						},
 						{
+							ID = ModID,
 							Class = "Label",
 							Props = {
+								Alignment = SGUI.LayoutAlignment.CENTRE,
+								AutoEllipsis = true,
 								AutoFont = AgencyFBNormal,
+								AutoSize = UnitVector(
+									Units.Min( Percentage.SEVENTY_FIVE, Auto.INSTANCE ),
+									Auto.INSTANCE
+								),
 								DoClick = function()
 									Client.ShowWebpage(
 										StringFormat(
@@ -511,7 +564,7 @@ function Plugin:SetupAdminMenuCommands()
 									)
 								end,
 								StyleName = "Link",
-								Text = tostring( ModID )
+								Text = KnownModTitles[ ModID ] or tostring( ModID )
 							}
 						}
 					}
@@ -519,7 +572,17 @@ function Plugin:SetupAdminMenuCommands()
 			end
 		end
 
-		SGUI:BuildTree( Tree )
+		local Elements = SGUI:BuildTree( Tree )
+		if NumMods > 0 then
+			GetModTitles( MapData.Mods, function( Titles )
+				for ModID, Title in pairs( Titles ) do
+					local Element = Elements[ ModID ]
+					if IsType( Title, "string" ) and SGUI.IsValid( Element ) then
+						Element:SetText( Title )
+					end
+				end
+			end )
+		end
 	end
 
 	local FadeTransition = {
