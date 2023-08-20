@@ -19,7 +19,6 @@ local include = Script.Load
 local Min = math.min
 local setmetatable = setmetatable
 local StringFormat = string.format
-local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
@@ -361,99 +360,10 @@ do
 end
 
 do
-	local Max = math.max
-	local StringExplode = string.Explode
-	local StringUTF8Encode = string.UTF8Encode
-	local TableConcat = table.concat
+	local Wrapping = require "shine/lib/gui/util/wrapping"
 
-	--[[
-		Wraps text to fit the size limit. Used for long words...
-
-		Returns two strings, first one fits entirely on one line, the other may not, and should be
-		added to the next word.
-	]]
-	local function TextWrap( Label, Text, XPos, MaxWidth )
-		local i = 1
-		local FirstLine = Text
-		local SecondLine = ""
-		local Chars = StringUTF8Encode( Text )
-		local Length = #Chars
-
-		-- Character by character, extend the text until it exceeds the width limit.
-		repeat
-			local CurText = TableConcat( Chars, "", 1, i )
-
-			-- Once it reaches the limit, we go back a character, and set our first and second line results.
-			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				-- The max makes sure we're cutting at least one character out of the text,
-				-- to avoid an infinite loop.
-				FirstLine = TableConcat( Chars, "", 1, Max( i - 1, 1 ) )
-				SecondLine = TableConcat( Chars, "", Max( i, 2 ) )
-
-				break
-			end
-
-			i = i + 1
-		until i > Length
-
-		return FirstLine, SecondLine
-	end
-
-	--[[
-		Word wraps text, adding new lines where the text exceeds the width limit.
-
-		This time, it shouldn't freeze the game...
-	]]
-	function SGUI.WordWrap( Label, Text, XPos, MaxWidth, MaxLines )
-		local Words = StringExplode( Text, " ", true )
-		local StartIndex = 1
-		local Lines = {}
-		local i = 1
-
-		-- While loop, as the size of the Words table may increase.
-		while i <= #Words do
-			local CurText = TableConcat( Words, " ", StartIndex, i )
-
-			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				-- This means one word is wider than the whole chatbox, so we need to cut it part way through.
-				if StartIndex == i then
-					local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
-
-					Lines[ #Lines + 1 ] = FirstLine
-
-					-- Add the second line as the next word, or as a new next word if none exists.
-					if Words[ i + 1 ] then
-						TableInsert( Words, i + 1, SecondLine )
-					else
-						-- This is just a micro-optimisation really, it's slightly quicker than table.insert.
-						Words[ i + 1 ] = SecondLine
-					end
-
-					StartIndex = i + 1
-				else
-					Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
-
-					-- We need to jump back a step, as we've still got another word to check.
-					StartIndex = i
-					i = i - 1
-				end
-
-				if MaxLines and #Lines >= MaxLines then
-					break
-				end
-			elseif i == #Words then -- We're at the end!
-				Lines[ #Lines + 1 ] = CurText
-			end
-
-			i = i + 1
-		end
-
-		Label:SetText( TableConcat( Lines, "\n" ) )
-
-		if MaxLines then
-			return TableConcat( Words, " ", StartIndex )
-		end
-	end
+	-- For backwards compatibility, export word wrapping under SGUI.
+	SGUI.WordWrap = Wrapping.WordWrap
 end
 
 function SGUI.TenEightyPScale( Value )

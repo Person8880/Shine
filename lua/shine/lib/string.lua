@@ -65,6 +65,32 @@ do
 	end
 end
 
+do
+	local function IterateExploded( State, PreviousEndIndex )
+		local String = State[ 1 ]
+		if PreviousEndIndex > #String then return nil end
+
+		PreviousEndIndex = PreviousEndIndex + 1
+
+		local Start, End = StringFind( String, State[ 2 ], PreviousEndIndex, State[ 3 ] )
+		if not Start then return #String + 1, StringSub( String, PreviousEndIndex ) end
+
+		return End, StringSub( String, PreviousEndIndex, Start - 1 )
+	end
+
+	--[[
+		Iterates over segments of the given string split by the given separator.
+
+		Inputs:
+			1. String to split.
+			2. Pattern to split with.
+			3. Optional flag to indicate that the separator should not be interpreted as a pattern.
+	]]
+	function string.IterateExploded( String, Separator, NoPattern )
+		return IterateExploded, { String, Separator, NoPattern }, 0
+	end
+end
+
 --[[
 	Splits the given string by the given pattern.
 
