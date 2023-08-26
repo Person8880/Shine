@@ -28,25 +28,6 @@ Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 Plugin.Version = "1.0"
 
-do
-	local Validator = Shine.Validator()
-
-	local function EnsureFieldIsColour( FieldName )
-		Validator:AddFieldRule( FieldName, Validator.IsType( "table", {} ) )
-		Validator:AddFieldRule( FieldName, Validator.HasLength( 3, 255 ) )
-		Validator:AddFieldRule( FieldName, Validator.AllValuesSatisfy(
-			Validator.IsType( "number", 255 ),
-			Validator.Clamp( 0, 255 )
-		) )
-	end
-
-	EnsureFieldIsColour( "MarineHighlightColour" )
-	EnsureFieldIsColour( "AlienHighlightColour" )
-	EnsureFieldIsColour( "HostileHighlightColour" )
-
-	Plugin.ConfigValidator = Validator
-end
-
 Shine.Hook.CallAfterFileLoad( "lua/GUIMinimap.lua", function()
 	Shine.Hook.SetupClassHook( "GUIMinimap", "Uninitialize", "OnGUIMinimapDestroy", "PassivePost" )
 	Shine.Hook.SetupClassHook( "GUIMinimap", "UpdatePlayerIcon", "OnGUIMinimapUpdatePlayerIcon", "PassivePost" )

@@ -198,6 +198,14 @@ end
 local AutoRegisterValidators
 if Client then
 	local ValidatorRules = {
+		Colour = function( self, ConfigKey, Options, Validator )
+			Validator:AddFieldRule( ConfigKey, Validator.IsType( "table", {} ) )
+			Validator:AddFieldRule( ConfigKey, Validator.HasLength( 3, 255 ) )
+			Validator:AddFieldRule( ConfigKey, Validator.AllValuesSatisfy(
+				Validator.IsType( "number", 255 ),
+				Validator.Clamp( 0, 255 )
+			) )
+		end,
 		Radio = function( self, ConfigKey, Options, Validator )
 			Validator:AddFieldRule( ConfigKey, Validator.InEnum( Options.Options, self.DefaultConfig[ ConfigKey ] ) )
 		end,
