@@ -311,6 +311,8 @@ function Slider:SizeLines()
 		self.DarkLineSize[ MainAxis ] = MainSize - self.DarkLinePos[ MainAxis ]
 		self.DarkLineSize[ CrossAxis ] = self.LineSize[ CrossAxis ]
 		self.DarkLine:SetSize( self.DarkLineSize )
+	else
+		LineSize = MainSize
 	end
 
 	self.LineSize[ MainAxis ] = LineSize
