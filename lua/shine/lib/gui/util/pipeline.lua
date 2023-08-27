@@ -87,8 +87,7 @@ end
 local function CancelTextureRefresh( self )
 	if self.RefreshContext then
 		-- Stop any ongoing refresh.
-		self.RefreshContext:Terminate()
-		self.RefreshContext:RemoveHooks()
+		self.RefreshContext:Destroy()
 		self.RefreshContext = nil
 	end
 end
@@ -793,6 +792,11 @@ function PipelineContext:Think()
 		OutputTexture:SetPipeline( self.Pipeline, self.Width, self.Height )
 		self:OnExecutionCompleted( OutputTexture )
 	end
+end
+
+function PipelineContext:Destroy()
+	self:Terminate()
+	self:RemoveHooks()
 end
 
 -- Export various types for external use/type checking.
