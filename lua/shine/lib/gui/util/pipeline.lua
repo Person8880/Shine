@@ -810,10 +810,6 @@ RenderPipeline.TextureListInput = TextureListInput
 
 local ItemSerialiser = require "shine/lib/gui/views/serialise"
 
-local function NextPowerOf2( Value )
-	return BitLShift( 1, Ceil( Log( Value, 2 ) ) )
-end
-
 --[[
 	A helper function to build a pipeline that renders a given node, then blurs it by the given blur radius.
 
@@ -895,8 +891,8 @@ function RenderPipeline.BuildBoxShadowPipeline( Params )
 	local Height = Params.Height
 	local BlurRadius = Params.BlurRadius
 
-	local TextureWidth = NextPowerOf2( Width + BlurRadius * 2 )
-	local TextureHeight = NextPowerOf2( Height + BlurRadius * 2 )
+	local TextureWidth = Width + BlurRadius * 2
+	local TextureHeight = Height + BlurRadius * 2
 
 	return RenderPipeline.ApplyBlurToNode( {
 		Width = TextureWidth,
@@ -907,8 +903,8 @@ function RenderPipeline.BuildBoxShadowPipeline( Params )
 			View = "lua/shine/lib/gui/views/content.lua",
 			Input = ItemSerialiser.SerialiseObjects( {
 				{
-					X = TextureWidth * 0.5 - Width * 0.5,
-					Y = TextureHeight * 0.5 - Height * 0.5,
+					X = BlurRadius,
+					Y = BlurRadius,
 					Width = Width,
 					Height = Height,
 					Colour = Params.Colour
