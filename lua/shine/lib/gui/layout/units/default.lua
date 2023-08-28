@@ -588,7 +588,7 @@ do
 end
 
 --[[
-	Rounds the value returned by another unit value to the nearest power of two.
+	Rounds the value returned by another unit value to the nearest multiple of two.
 
 	This is useful to ensure symmetry.
 ]]

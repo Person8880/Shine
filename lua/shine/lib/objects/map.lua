@@ -4,7 +4,6 @@
 ]]
 
 local Clamp = math.Clamp
-local getmetatable = getmetatable
 local Implements = Shine.Implements
 local IsType = Shine.IsType
 local pairs = pairs

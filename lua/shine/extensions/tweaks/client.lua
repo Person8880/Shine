@@ -646,7 +646,6 @@ function Plugin:Cleanup()
 	end
 
 	self.Minimaps = nil
-	self.HighlightPipeline = nil
 
 	return self.BaseClass.Cleanup( self )
 end

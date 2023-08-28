@@ -91,6 +91,19 @@ local function UpdateWithValues( TileIndex )
 	end
 end
 
+local function UpdateBackground()
+	-- The background and overlay items contain the previously rendered screen-size texture, so they need to use the
+	-- size of the GUIView itself.
+	local Size = Vector( _G.Width, _G.Height, 0 )
+	Background:SetSize( Size )
+	Overlay:SetSize( Size )
+
+	if _G.BackgroundTexture then
+		Background:SetTexture( _G.BackgroundTexture )
+		Overlay:SetTexture( _G.BackgroundTexture )
+	end
+end
+
 function Initialise()
 	_G.NeedsUpdate = false
 
@@ -134,22 +147,15 @@ function Initialise()
 	Overlay:SetColor( Color( 1, 1, 1, 0.4 ) )
 	Overlay:SetBlendTechnique( GUIItem.Add )
 	Background:AddChild( Overlay )
+
+	UpdateBackground()
 end
 
 function Update( DeltaTime )
 	if _G.NeedsUpdate then
 		_G.NeedsUpdate = false
 
-		-- The background and overlay items contain the previously rendered screen-size texture, so they need to use the
-		-- size of the GUIView itself.
-		local Size = Vector( _G.Width, _G.Height, 0 )
-		Background:SetSize( Size )
-		Overlay:SetSize( Size )
-
-		if _G.BackgroundTexture then
-			Background:SetTexture( _G.BackgroundTexture )
-			Overlay:SetTexture( _G.BackgroundTexture )
-		end
+		UpdateBackground()
 
 		for i = 1, 3 do
 			UpdateWithValues( i )

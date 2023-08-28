@@ -148,8 +148,7 @@ end
 
 function Modal:SetSize( Size )
 	local OldSize = self:GetSize()
-
-	if not Controls.Panel.SetSize( self, Size ) then return end
+	if not Controls.Panel.SetSize( self, Size ) then return false end
 
 	local Pos = self.Background:GetPosition()
 	local Diff = Size - OldSize
@@ -159,11 +158,13 @@ function Modal:SetSize( Size )
 	Pos = Pos + Diff * 0.5
 
 	self.Background:SetPosition( Pos )
+
+	return true
 end
 
 function Modal:SetPos( Pos )
 	-- Compensate for the hotspot to interpret this position as top-left.
-	self.BaseClass.SetPos( self, Pos + self:GetSize() * 0.5 )
+	return self.BaseClass.SetPos( self, Pos + self:GetSize() * 0.5 )
 end
 
 function Modal:GetPos()

@@ -7,10 +7,7 @@ local SGUI = Shine.GUI
 local Hook = Shine.Hook
 
 local assert = assert
-local BitLShift = bit.lshift
-local Ceil = math.ceil
 local IsType = Shine.IsType
-local Log = math.log
 local getmetatable = getmetatable
 local ipairs = ipairs
 local setmetatable = setmetatable
