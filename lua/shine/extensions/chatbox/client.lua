@@ -1065,6 +1065,11 @@ do
 	end
 
 	local SETTINGS_PADDING_AMOUNT = 5
+	local function GetPaddingOffset( self )
+		-- This is summed in this manner to match the rounding applied to the two padding values used on the panel.
+		-- Using just one scaled unit here wouldn't necessarily match, as each padding direction is rounded separately.
+		return Scaled( SETTINGS_PADDING_AMOUNT, self.UIScale.x ) + Scaled( SETTINGS_PADDING_AMOUNT * 4, self.UIScale.x )
+	end
 
 	local function GetCheckBoxSize( self )
 		return UnitVector( Scaled( 28, self.ScalarScale ), Scaled( 28, self.ScalarScale ) )
@@ -1077,14 +1082,14 @@ do
 
 	local function GetDropdownSize( self )
 		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ) - GetPaddingOffset( self ),
 			Scaled( 28, self.UIScale.y )
 		)
 	end
 
 	local function GetButtonSize( self )
 		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ) - GetPaddingOffset( self ),
 			Scaled( 32, self.UIScale.y )
 		)
 	end

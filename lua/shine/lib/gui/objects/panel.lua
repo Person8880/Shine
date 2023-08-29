@@ -522,7 +522,7 @@ function Panel:SetMaxWidth( MaxWidth )
 
 	local ElementWidth = self:GetSize().x
 
-	if ElementWidth >= MaxWidth then
+	if SGUI.IsApproximatelyGreaterEqual( ElementWidth, MaxWidth ) then
 		if SGUI.IsValid( self.HorizontalScrollbar ) then
 			self.HorizontalScrollbar:Destroy()
 			self.HorizontalScrollbar = nil
@@ -613,7 +613,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 	local ElementHeight = self:GetSize().y
 
 	-- Height has reduced below the max height, so remove the scrollbar.
-	if ElementHeight >= MaxHeight then
+	if SGUI.IsApproximatelyGreaterEqual( ElementHeight, MaxHeight ) then
 		if SGUI.IsValid( self.Scrollbar ) then
 			self.Scrollbar:Destroy()
 			self.Scrollbar = nil

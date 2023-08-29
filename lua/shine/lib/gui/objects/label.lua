@@ -203,11 +203,10 @@ end
 
 function Label:ApplyAutoEllipsis( Width )
 	local Text = self.Text
-	if self:GetTextWidth( Text ) <= Width then
+	if SGUI.IsApproximatelyGreaterEqual( Width, self:GetTextWidth( Text ) ) then
 		if self.AutoEllipsisApplied then
 			ResetAutoEllipsis( self, Text )
 		end
-
 		return
 	end
 

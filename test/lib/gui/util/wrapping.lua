@@ -3,6 +3,12 @@
 ]]
 
 local UnitTest = Shine.UnitTest
+
+Shine.GUI = Shine.GUI or {}
+Shine.GUI.IsApproximatelyGreaterEqual = Shine.GUI.IsApproximatelyGreaterEqual or function( Left, Right )
+	return Left >= Right - 1e-4
+end
+
 local Wrapping = require "shine/lib/gui/util/wrapping"
 
 local Label = {

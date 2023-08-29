@@ -359,6 +359,11 @@ do
 	end
 end
 
+function SGUI.IsApproximatelyGreaterEqual( Left, Right )
+	-- Account for tiny floating point errors.
+	return Left >= Right - 1e-4
+end
+
 do
 	local Wrapping = require "shine/lib/gui/util/wrapping"
 

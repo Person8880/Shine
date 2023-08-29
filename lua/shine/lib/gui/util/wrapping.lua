@@ -2,6 +2,7 @@
 	Text wrapping utilities.
 ]]
 
+local IsApproximatelyGreaterEqual = Shine.GUI.IsApproximatelyGreaterEqual
 local Max = math.max
 local StringFormat = string.format
 local StringIterateExploded = string.IterateExploded
@@ -30,7 +31,7 @@ local function TextWrap( Label, Text, XPos, MaxWidth )
 		Width = Width + Label:GetTextWidth( Chars[ i ] )
 
 		-- Once it reaches the limit, we go back a character, and set our first and second line results.
-		if XPos + Width > MaxWidth then
+		if not IsApproximatelyGreaterEqual( MaxWidth, XPos + Width ) then
 			-- The max makes sure we're cutting at least one character out of the text,
 			-- to avoid an infinite loop.
 			FirstLine = TableConcat( Chars, "", 1, Max( i - 1, 1 ) )
@@ -58,7 +59,7 @@ local function WordWrapLine( Label, Line, SpaceWidth, XPos, MaxWidth, MaxLines )
 
 		local CurrentSpaceWidth = i * SpaceWidth
 
-		if XPos + Width + CurrentSpaceWidth > MaxWidth then
+		if not IsApproximatelyGreaterEqual( MaxWidth, XPos + Width + CurrentSpaceWidth ) then
 			-- This means one word is wider than the allowed space, so we need to cut it part way through.
 			if i == 0 then
 				local FirstLine, SecondLine = TextWrap( Label, Word, XPos, MaxWidth )
