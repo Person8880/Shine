@@ -2,14 +2,23 @@
 	Web page window.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local SGUI = Shine.GUI
+local Controls = SGUI.Controls
+local Units = SGUI.Layout.Units
 
 local Clamp = math.Clamp
+local Random = math.random
 local StringByte = string.byte
+local StringExplode = string.Explode
 local StringFormat = string.format
 local StringGSub = string.gsub
+local StringStartsWith = string.StartsWith
+local StringSub = string.sub
 local StringUTF8CodePoint = string.UTF8CodePoint
 local StringUTF8Encode = string.UTF8Encode
+local TableConcat = table.concat
 
 local JavaScriptStringReplacements = {
 	[ "\\" ] = "\\\\",
@@ -60,6 +69,8 @@ do
 
 		self.JSQueue = {}
 		self.IsLoading = false
+		self.LocationURL = ""
+		self.IsSecure = false
 
 		self:AddPropertyChangeListener( "IsLoading", FlushJSQueue )
 	end
@@ -72,6 +83,8 @@ function Webpage:CleanupWebView()
 		self.WebView = nil
 	end
 end
+
+local OnAlertError = Shine.BuildErrorHandler( "Webpage alert callback error" )
 
 function Webpage:LoadURL( URL, W, H, Replace )
 	if not self.WebView then
@@ -88,7 +101,7 @@ function Webpage:LoadURL( URL, W, H, Replace )
 		self.Background:SetTexture( TextureName )
 
 		self.WebView:HookJSAlert( function( WebView, AlertText )
-			self:OnJSAlert( WebView, AlertText )
+			xpcall( self.OnJSAlert, OnAlertError, self, WebView, AlertText )
 		end )
 	end
 
@@ -103,6 +116,9 @@ function Webpage:LoadURL( URL, W, H, Replace )
 
 	self.IsLoading = true
 	self:OnPropertyChanged( "IsLoading", true )
+
+	self.LocationURL = URL
+	self:OnPropertyChanged( "LocationURL", URL )
 end
 
 --[[
@@ -122,8 +138,62 @@ function Webpage:GetHasLoaded()
 	return self.WebView:GetUrlLoaded()
 end
 
-function Webpage:OnJSAlert( WebView, AlertText )
-	-- Override to see JavaScript alerts...
+local UpdateLocationScript = [[alert(
+	"%s:LOCATION_CHANGE:" + ( window.isSecureContext ? "1" : "0" ) + ":"  + location.href
+);]]
+
+function Webpage:UpdateLocation()
+	self:ExecuteJS( StringFormat( UpdateLocationScript, self.AlertPrefix ) )
+	self.NextLocationUpdate = SGUI.GetTime() + 0.1
+end
+
+local function OnLoadingChanged( self, IsLoading )
+	if IsLoading then return end
+
+	self:UpdateLocation()
+end
+
+function Webpage:ObserveLocationChanges( ShouldObserve )
+	if ShouldObserve and not self.AlertPrefix then
+		self.AlertPrefix = "SHINE_WEBPAGE_"..Random()
+		self.NextLocationUpdate = 0
+		self:AddPropertyChangeListener( "IsLoading", OnLoadingChanged )
+	elseif not ShouldObserve and self.AlertPrefix then
+		self.AlertPrefix = nil
+		self.NextLocationUpdate = nil
+		self:RemovePropertyChangeListener( "IsLoading", OnLoadingChanged )
+	end
+end
+
+do
+	local Actions = {
+		LOCATION_CHANGE = function( self, Segments )
+			local IsSecure = Segments[ 2 ] == "1"
+			local URL = TableConcat( Segments, ":", 3 )
+
+			if IsSecure ~= self.IsSecure then
+				self.IsSecure = IsSecure
+				self:OnPropertyChanged( "IsSecure", IsSecure )
+			end
+
+			if URL ~= self.LocationURL then
+				self.LocationURL = URL
+				self:OnPropertyChanged( "LocationURL", URL )
+			end
+		end
+	}
+
+	function Webpage:OnJSAlert( WebView, AlertText )
+		if not self.AlertPrefix then return end
+		if not StringStartsWith( AlertText, self.AlertPrefix ) then return end
+
+		local Message = StringSub( AlertText, #self.AlertPrefix + 2 )
+		local Segments = StringExplode( Message, ":", true )
+		local Action = Segments[ 1 ]
+		if not Actions[ Action ] then return end
+
+		Actions[ Action ]( self, Segments )
+	end
 end
 
 function Webpage:ExecuteJS( JavaScript )
@@ -143,12 +213,21 @@ function Webpage:ExecuteJS( JavaScript )
 end
 
 function Webpage:Think( DeltaTime )
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
+	if not self:GetIsVisible() then return end
 
-	if self.IsLoading and self:GetHasLoaded() then
+	self.BaseClass.ThinkWithChildren( self, DeltaTime )
+
+	if self.IsLoading then
+		if not self:GetHasLoaded() then return end
+
 		self.IsLoading = false
 		self:OnPropertyChanged( "IsLoading", false )
+	end
+
+	-- Alerts never seem to be received by Lua when placed in callbacks at the JS level, so this polling hack is the
+	-- only way to update the current URL.
+	if self.AlertPrefix and SGUI.GetTime() >= self.NextLocationUpdate then
+		self:UpdateLocation()
 	end
 end
 
@@ -253,6 +332,10 @@ function Webpage:OnMouseUp( Key )
 	local KeyCode = Key - MouseButton0
 	self.WebView:OnMouseUp( KeyCode )
 
+	if self.AlertPrefix then
+		self:UpdateLocation()
+	end
+
 	return true
 end
 
@@ -273,3 +356,124 @@ function Webpage:Cleanup()
 end
 
 SGUI:Register( "Webpage", Webpage )
+
+-- Basic control bar for a Webpage element providing back + forward buttons, a security icon, a URL text entry, and a
+-- refresh button.
+local WebpageControls = {}
+local SecureIconColours = {
+	[ false ] = Colour( 0.7, 0, 0 ),
+	[ true ] = Colour( 0, 0.6, 0 )
+}
+
+SGUI.AddBoundProperty( WebpageControls, "Font", "URLEntry" )
+SGUI.AddBoundProperty( WebpageControls, "TextScale", "URLEntry" )
+SGUI.AddBoundProperty( WebpageControls, "InputEnabled", "URLEntry:SetEnabled" )
+
+function WebpageControls:Initialise()
+	Controls.Row.Initialise( self )
+
+	-- Do not allow arbitrary navigation by default, keep it to just the loaded page.
+	self.InputEnabled = false
+	self:SetShader( SGUI.Shaders.Invisible )
+
+	local ButtonSize = Units.UnitVector( Units.OppositeAxisPercentage.ONE_HUNDRED, Units.Percentage.ONE_HUNDRED )
+	local ElementMargin = Units.HighResScaled( 5 )
+
+	local Elements = SGUI:BuildTree( {
+		Parent = self,
+		{
+			Class = "Button",
+			Props = {
+				AutoSize = ButtonSize,
+				Icon = SGUI.Icons.Ionicons.ArrowLeftC,
+				DoClick = function()
+					self.Webpage:NavigateBack()
+				end
+			}
+		},
+		{
+			Class = "Button",
+			Props = {
+				AutoSize = ButtonSize,
+				Icon = SGUI.Icons.Ionicons.ArrowRightC,
+				DoClick = function()
+					self.Webpage:NavigateForward()
+				end
+			}
+		},
+		{
+			Class = "Label",
+			ID = "SecureIcon",
+			Props = {
+				AutoFont = {
+					Family = SGUI.FontFamilies.Ionicons,
+					Size = Units.HighResScaled( 27 )
+				},
+				Colour = SecureIconColours[ true ],
+				Margin = Units.Spacing( ElementMargin, 0, 0, 0 ),
+				Text = SGUI.Icons.Ionicons.Locked,
+				IsSchemed = false,
+				CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
+			}
+		},
+		{
+			Class = "TextEntry",
+			ID = "URLEntry",
+			Props = {
+				Fill = true,
+				Margin = Units.Spacing( ElementMargin, 0, ElementMargin, 0 ),
+				Enabled = self.InputEnabled,
+				-- If input is enabled, allow navigation when pressing enter.
+				OnEnter = function()
+					self.Webpage:LoadURL( self.URLEntry:GetText() )
+					self.URLEntry:LoseFocus()
+				end
+			}
+		},
+		{
+			Class = "Button",
+			Props = {
+				AutoSize = ButtonSize,
+				Icon = SGUI.Icons.Ionicons.Refresh,
+				DoClick = function()
+					self.Webpage:ReloadCurrentPage()
+				end
+			}
+		}
+	} )
+
+	self.URLEntry = Elements.URLEntry
+	self.SecureIcon = Elements.SecureIcon
+end
+
+function WebpageControls:SetWebpage( WebpageElement )
+	self.Webpage = WebpageElement
+
+	-- Change the secure icon based on the reported secure context state of the page.
+	Binder():FromElement( WebpageElement, "IsSecure" )
+		:ToElement( self.SecureIcon, "Text", {
+			Transformer = function( IsSecure )
+				return SGUI.Icons.Ionicons[ IsSecure and "Locked" or "Unlocked" ]
+			end
+		} )
+		:ToElement( self.SecureIcon, "Colour", {
+			Transformer = function( IsSecure )
+				return SecureIconColours[ IsSecure == true ]
+			end
+		} ):BindProperty()
+
+	-- Update the URL text entry with the current known URL, providing it's not in focus and the URL isn't internal.
+	Binder():FromElement( WebpageElement, "LocationURL" )
+		:ToElement( self.URLEntry, "Text", {
+			Filter = function( LocationURL )
+				return StringStartsWith( LocationURL, "http" ) and not self.URLEntry:HasFocus()
+			end,
+			Transform = function( LocationURL )
+				return StringSub( LocationURL, 1, 255 )
+			end
+		} ):BindProperty()
+
+	WebpageElement:ObserveLocationChanges( true )
+end
+
+SGUI:Register( "WebpageControls", WebpageControls, "Row" )
