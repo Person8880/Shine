@@ -55,6 +55,8 @@ function Panel:Initialise()
 	self.BlockEventsIfFocusedWindow = true
 	self.AlwaysInMouseFocus = false
 
+	self.SizeNeedsRecompute = true
+
 	self:AddPropertyChangeListener( "AutoHideScrollbar", OnAutoHideScrollbarChanged )
 end
 
@@ -301,9 +303,9 @@ function Panel:Add( Class, Created )
 end
 
 function Panel:SetSize( Size )
-	local OldSize = self:GetSize()
+	if not self.BaseClass.SetSize( self, Size ) then return false end
 
-	self.BaseClass.SetSize( self, Size )
+	self.SizeNeedsRecompute = true
 
 	if self.CroppingBox then
 		self.CroppingBox:SetSize( Size )
@@ -311,8 +313,6 @@ function Panel:SetSize( Size )
 	else
 		self:SetCroppingBounds( nil )
 	end
-
-	if Size == OldSize then return end
 
 	self:UpdateScrollbarSize()
 
@@ -335,9 +335,13 @@ function Panel:GetMaxHeight()
 end
 
 function Panel:GetAvailableLayoutSizeFromScrollableSize()
+	local Size = self:GetSize()
+	-- If the element's size just changed, let the layout run a first pass with the new size to see if there's any
+	-- overflow. The max width/height will be adjusted afterwards which may trigger a second layout.
+	if self.SizeNeedsRecompute then return Size end
+
 	-- The available size for the layout object is the scrollable space, not just the visible size of the panel.
 	-- This ensures that centre and max aligned elements align based on the scrollable space rather than underflowing.
-	local Size = self:GetSize()
 	local Width, Height = Size.x, Size.y
 	if self.MaxWidth then
 		Width = Max( Width, self.MaxWidth )
@@ -345,6 +349,7 @@ function Panel:GetAvailableLayoutSizeFromScrollableSize()
 	if self.MaxHeight then
 		Height = Max( Height, self.MaxHeight )
 	end
+
 	return Vector2( Width, Height )
 end
 
@@ -873,6 +878,7 @@ end
 
 function Panel:PerformLayout()
 	self.BaseClass.PerformLayout( self )
+	self.SizeNeedsRecompute = false
 
 	if self.CroppingBox then
 		-- Some elements may have moved to no longer be so far down/to the right.

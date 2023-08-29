@@ -394,7 +394,8 @@ local SettingsTypes = {
 					Class = "Row",
 					Props = {
 						AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
-						Shader = SGUI.Shaders.Invisible
+						Shader = SGUI.Shaders.Invisible,
+						DebugName = StringFormat( "ColourPickerRow%s", Entry.ConfigKey )
 					},
 					Children = {
 						{
@@ -405,7 +406,8 @@ local SettingsTypes = {
 								Fill = true,
 								Text = Locale:GetPhrase( TranslationSource, Entry.Description ),
 								TextScale = TextScale,
-								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
+								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
+								DebugName = StringFormat( "ColourPickerRow%sLabel", Entry.ConfigKey )
 							}
 						},
 						{
@@ -414,7 +416,8 @@ local SettingsTypes = {
 							Props = {
 								AutoSize = UnitVector( HighResScaled( 128 ), HighResScaled( 32 ) ),
 								Value = ArrayToColour( CurrentValue ),
-								Alignment = SGUI.LayoutAlignment.MAX
+								Alignment = SGUI.LayoutAlignment.MAX,
+								DebugName = StringFormat( "ColourPickerRow%sPicker", Entry.ConfigKey )
 							}
 						},
 						{
@@ -426,7 +429,8 @@ local SettingsTypes = {
 								Icon = SGUI.Icons.Ionicons.ArrowReturnLeft,
 								Tooltip = Locale:GetPhrase( "Core", "CLIENT_CONFIG_RESET_TO_DEFAULT_BUTTON_TOOLTIP" ),
 								Alignment = SGUI.LayoutAlignment.MAX,
-								Margin = Spacing( 0, 0, HighResScaled( 4 ), 0 )
+								Margin = Spacing( 0, 0, HighResScaled( 4 ), 0 ),
+								DebugName = StringFormat( "ColourPickerRow%sResetButton", Entry.ConfigKey )
 							}
 						}
 					}
@@ -540,6 +544,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 			TabPanel:SetScrollbarPos( Vector2( -SMALL_PADDING:GetValue(), 0 ) )
 			TabPanel:SetScrollbarHeightOffset( 0 )
 			TabPanel:SetResizeLayoutForScrollbar( true )
+			TabPanel:SetDebugName( "ClientConfigMenuContentPanel" )
 
 			return SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( SMALL_PADDING, SMALL_PADDING,
