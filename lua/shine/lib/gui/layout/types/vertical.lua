@@ -61,11 +61,11 @@ function Vertical:GetCrossAxisSize( Size )
 	return Size.x
 end
 
-function Vertical:GetFillElementWidth( Element, Width, FillSizePerElement )
-	return Width
+function Vertical:GetFillElementWidth( Element, FillSizePerElement, ParentWidth, ParentHeight )
+	return Element:GetComputedSize( 1, ParentWidth, ParentHeight )
 end
 
-function Vertical:GetFillElementHeight( Element, Height, FillSizePerElement )
+function Vertical:GetFillElementHeight( Element, FillSizePerElement, ParentHeight, ParentWidth )
 	return FillSizePerElement
 end
 

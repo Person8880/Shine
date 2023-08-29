@@ -974,7 +974,7 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 
 		Child:PreComputeWidth()
 
-		local Width = Child:GetComputedSize( 1, Size.x )
+		local Width = Child:GetComputedSize( 1, Size.x, Size.y )
 
 		-- As in layouts, set the width upfront to avoid needing to auto-wrap twice.
 		local ChildSize = Vector2( Width, Child:GetSize().y )
@@ -982,7 +982,7 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 
 		Child:PreComputeHeight( Width )
 
-		ChildSize.y = Child:GetComputedSize( 2, Size.y )
+		ChildSize.y = Child:GetComputedSize( 2, Size.y, Size.x )
 		Child:SetLayoutSize( ChildSize )
 
 		local Pos = Child:ComputeAbsolutePosition( Size )
@@ -1606,13 +1606,18 @@ end
 local VectorAxis = {
 	"x", "y"
 }
+local OppositeAxis = {
+	2, 1
+}
 
 function ControlMeta:GetMaxSizeAlongAxis( Axis )
 	local Padding = self:GetComputedPadding()
 	local TotalIndex = Axis + 4
 
 	local Total = Padding[ TotalIndex ]
-	local ParentSize = self:GetParentSize()[ VectorAxis[ Axis ] ]
+	local ParentSize = self:GetParentSize()
+	local MainParentSize = ParentSize[ VectorAxis[ Axis ] ]
+	local OppositeAxisParentSize = ParentSize[ VectorAxis[ OppositeAxis[ Axis ] ] ]
 	local MaxChildSize = 0
 
 	for Child in self:IterateChildren() do
@@ -1620,7 +1625,8 @@ function ControlMeta:GetMaxSizeAlongAxis( Axis )
 
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
-		local ChildSize = Child:GetComputedSize( Axis, ParentSize ) + Child:GetComputedMargin()[ TotalIndex ]
+		local ChildSize = Child:GetComputedSize( Axis, MainParentSize, OppositeAxisParentSize ) +
+			Child:GetComputedMargin()[ TotalIndex ]
 
 		MaxChildSize = Max( MaxChildSize, ChildSize )
 	end
@@ -1633,14 +1639,16 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 	local TotalIndex = Axis + 4
 
 	local Total = Padding[ TotalIndex ]
-	local ParentSize = self:GetParentSize()[ VectorAxis[ Axis ] ]
+	local ParentSize = self:GetParentSize()
+	local MainParentSize = ParentSize[ VectorAxis[ Axis ] ]
+	local OppositeAxisParentSize = ParentSize[ VectorAxis[ OppositeAxis[ Axis ] ] ]
 
 	for Child in self:IterateChildren() do
 		Child:PreComputeWidth()
 
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
-		Total = Total + Child:GetComputedSize( Axis, ParentSize )
+		Total = Total + Child:GetComputedSize( Axis, MainParentSize, OppositeAxisParentSize )
 		Total = Total + Child:GetComputedMargin()[ TotalIndex ]
 	end
 
@@ -1662,7 +1670,12 @@ function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 
 	local ParentSize = self:GetParentSize()
 
-	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ), self:GetComputedSize( 2, ParentSize.y ) ) )
+	self:SetSize(
+		Vector2(
+			self:GetComputedSize( 1, ParentSize.x, ParentSize.y ),
+			self:GetComputedSize( 2, ParentSize.y, ParentSize.x )
+		)
+	)
 end
 
 do
@@ -1694,11 +1707,11 @@ end
 --[[
 	Computes the size of the control based on the units provided.
 ]]
-function ControlMeta:GetComputedSize( Index, ParentSize )
+function ControlMeta:GetComputedSize( Index, ParentSize, OppositeAxisParentSize )
 	local Size = self.AutoSize
 	if Size then
 		-- Auto-size means use our set auto-size units relative to the passed in size.
-		return Max( Size[ Index ]:GetValue( ParentSize, self, Index ), 0 )
+		return Max( Size[ Index ]:GetValue( ParentSize, self, Index, OppositeAxisParentSize ), 0 )
 	end
 
 	-- Fill means take the size given.
@@ -1707,7 +1720,7 @@ function ControlMeta:GetComputedSize( Index, ParentSize )
 	end
 
 	-- No auto-size means the element has a fixed size.
-	return self:GetSize()[ VectorAxis[ Index ] ]
+	return self:GetSizeForAxis( Index )
 end
 
 function ControlMeta:ComputeSpacing( Spacing )
@@ -1745,6 +1758,10 @@ end
 
 function ControlMeta:GetSizeForAxis( Axis )
 	return self:GetSize()[ VectorAxis[ Axis ] ]
+end
+
+function ControlMeta:GetSizeForOppositeAxis( Axis )
+	return self:GetSizeForAxis( OppositeAxis[ Axis ] )
 end
 
 --[[

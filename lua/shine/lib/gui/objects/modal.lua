@@ -177,7 +177,10 @@ end
 function Modal:GetMaxSizeAlongAxis( Axis )
 	local MaxSize = self.Layout:GetMaxSizeAlongAxis( Axis )
 	if SGUI.IsValid( self.TitleBar ) then
-		MaxSize = Max( MaxSize, self.TitleBar:GetComputedSize( Axis, self:GetSizeForAxis( Axis ) ) )
+		MaxSize = Max(
+			MaxSize,
+			self.TitleBar:GetComputedSize( Axis, self:GetSizeForAxis( Axis ), self:GetSizeForOppositeAxis( Axis ) )
+		)
 	end
 	return MaxSize
 end

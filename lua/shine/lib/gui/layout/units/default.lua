@@ -300,10 +300,20 @@ end
 ]]
 do
 	local HighResScaled = NewUnit( "HighResScaled" )
-	local HIGH_RES_WIDTH = 1920
+
+	local function GetWithScale( self ) return SGUI.LinearScale( self.Value ) end
+	local function GetWithoutScale( self ) return self.Value end
+
+	-- Avoid runtime branching by deciding whether to scale upfront based on the current screen size.
+	local CurrentGetter = GetWithoutScale
+	local function RefreshScalingFunction()
+		CurrentGetter = SGUI.IsHighRes() and GetWithScale or GetWithoutScale
+	end
+	Shine.Hook.Add( "OnSGUILoaded", RefreshScalingFunction )
+	Shine.Hook.Add( "OnResolutionChanged", RefreshScalingFunction )
 
 	function HighResScaled:GetValue()
-		return SGUI.GetScreenSize() > HIGH_RES_WIDTH and SGUI.LinearScale( self.Value ) or self.Value
+		return CurrentGetter( self )
 	end
 
 	function HighResScaled:__eq( Other )
@@ -343,7 +353,7 @@ do
 end
 
 --[[
-	Percentage units are computed based on the parent's size.
+	Percentage units computed based on the parent's size along the axis the unit is used with.
 ]]
 do
 	local Percentage = NewUnit( "Percentage" )
@@ -379,12 +389,48 @@ do
 end
 
 --[[
+	Percentage units computed based on the parent's size along the opposite axis to the axis the unit is used with.
+]]
+do
+	local OppositeAxisPercentage = NewUnit( "OppositeAxisPercentage" )
+
+	function OppositeAxisPercentage:Init( Value )
+		self.Value = Value * 0.01
+		return self
+	end
+
+	function OppositeAxisPercentage:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
+		return OppositeAxisParentSize * self.Value
+	end
+
+	function OppositeAxisPercentage:__eq( Other )
+		return self.Value == Other.Value
+	end
+
+	function OppositeAxisPercentage:__tostring()
+		return StringFormat( "OppositeAxisPercentage( %s )", self.Value * 100 )
+	end
+
+	local OneHundred = OppositeAxisPercentage( 100 )
+	-- Optimise out the redundant multiplier.
+	function OneHundred:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
+		return OppositeAxisParentSize
+	end
+
+	-- Avoid creating lots of repeated units.
+	OppositeAxisPercentage.ONE_HUNDRED = OneHundred
+	OppositeAxisPercentage.SEVENTY_FIVE = OppositeAxisPercentage( 75 )
+	OppositeAxisPercentage.FIFTY = OppositeAxisPercentage( 50 )
+	OppositeAxisPercentage.TWENTY_FIVE = OppositeAxisPercentage( 25 )
+end
+
+--[[
 	Percentage of another element in the tree, usually an ancestor.
 ]]
 do
 	local PercentageOfElement = NewUnit( "PercentageOfElement" )
 
-	function PercentageOfElement:Init( Element, Value )
+	function PercentageOfElement:Init( Element, Value, Axis )
 		Shine.AssertAtLevel(
 			Shine.IsCallable( Element.GetSizeForAxis ),
 			"Element must implement GetSizeForAxis method!",
@@ -394,17 +440,30 @@ do
 		self.Element = Element
 		self.Value = Value * 0.01
 
+		if Axis then
+			Shine.AssertAtLevel( Axis == 1 or Axis == 2, "Invalid axis provided: %s", 3, Axis )
+			self.Axis = Axis
+			self.GetValue = self.GetValueFromConfiguredAxis
+		else
+			self.GetValue = self.GetValueFromGivenAxis
+		end
+
 		return self
 	end
 
-	function PercentageOfElement:GetValue( ParentSize, Element, Axis )
-		-- Note that this assumes the referenced element has already been through the layout process at this point (i.e.
-		-- that its an ancestor element), otherwise this isn't going to give consistent results.
+	-- Note that this unit assumes the referenced element has already been through the layout process by the time the
+	-- value is computed (i.e. that the element is an ancestor), otherwise it isn't going to give consistent results.
+
+	function PercentageOfElement:GetValueFromConfiguredAxis( ParentSize, Element, Axis )
+		return self.Element:GetSizeForAxis( self.Axis ) * self.Value
+	end
+
+	function PercentageOfElement:GetValueFromGivenAxis( ParentSize, Element, Axis )
 		return self.Element:GetSizeForAxis( Axis ) * self.Value
 	end
 
 	function PercentageOfElement:__eq( Other )
-		return self.Element == Other.Element and self.Value == Other.Value
+		return self.Element == Other.Element and self.Value == Other.Value and self.Axis == Other.Axis
 	end
 
 	function PercentageOfElement:__tostring()

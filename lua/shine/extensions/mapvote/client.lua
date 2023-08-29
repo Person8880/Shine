@@ -979,7 +979,7 @@ function Plugin:CreateMapVoteNotification( VoteButton )
 	self.MapVoteNotification:SetSize(
 		Vector2(
 			self.MapVoteNotification:GetContentSizeForAxis( 1 ),
-			self.MapVoteNotification:GetMaxSizeAlongAxis( 2 )
+			self.MapVoteNotification:GetContentSizeForAxis( 2 )
 		)
 	)
 	local W, H = SGUI.GetScreenSize()

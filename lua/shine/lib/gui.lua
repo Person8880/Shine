@@ -1339,6 +1339,10 @@ function SGUI.GetScreenSize()
 	return ScrW(), ScrH()
 end
 
+function SGUI.IsHighRes()
+	return Min( SGUI.GetScreenSize() ) > 1080
+end
+
 local CreateItem = GUI.CreateItem
 local function CreateGUIItem()
 	local Item = CreateItem()
@@ -1422,10 +1426,12 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
-	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
+	Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 
 	SetupRenderDeviceResetCheck()
-end, Shine.Hook.MAX_PRIORITY )
+
+	Hook.Broadcast( "OnSGUILoaded" )
+end, Hook.MAX_PRIORITY )
 
 Hook.CallAfterFileLoad( "lua/Commander_Client.lua", function()
 	local GetMouseIsOverUI = CommanderUI_GetMouseIsOverUI

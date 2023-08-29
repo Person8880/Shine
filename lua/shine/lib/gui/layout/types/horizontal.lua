@@ -61,12 +61,12 @@ function Horizontal:GetCrossAxisSize( Size )
 	return Size.y
 end
 
-function Horizontal:GetFillElementWidth( Element, Width, FillSizePerElement )
+function Horizontal:GetFillElementWidth( Element, FillSizePerElement, ParentWidth, ParentHeight )
 	return FillSizePerElement
 end
 
-function Horizontal:GetFillElementHeight( Element, Height, FillSizePerElement )
-	return Height
+function Horizontal:GetFillElementHeight( Element, FillSizePerElement, ParentHeight, ParentWidth )
+	return Element:GetComputedSize( 2, ParentHeight, ParentWidth )
 end
 
 function Horizontal:GetInitialBounds( MinX, MinY, MaxX, MaxY )

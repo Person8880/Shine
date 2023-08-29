@@ -24,7 +24,8 @@ function Directional:SetElementSize( Element, InnerBoxSize, Margin )
 
 	Element:PreComputeWidth()
 
-	local Width = Element:GetComputedSize( 1, InnerBoxSize.x - Margin[ 5 ] )
+	local ParentWidth, ParentHeight = InnerBoxSize.x - Margin[ 5 ], InnerBoxSize.y - Margin[ 6 ]
+	local Width = Element:GetComputedSize( 1, ParentWidth, ParentHeight )
 
 	-- Update the width immediately, this helps prevent needing to auto-wrap text twice.
 	local NewSize = Vector2( Width, OriginalSize.y )
@@ -33,7 +34,7 @@ function Directional:SetElementSize( Element, InnerBoxSize, Margin )
 	Element:PreComputeHeight( Width )
 
 	-- Now compute the height and set the final size from it.
-	local Height = Element:GetComputedSize( 2, InnerBoxSize.y - Margin[ 6 ] )
+	local Height = Element:GetComputedSize( 2, ParentHeight, ParentWidth )
 	NewSize.y = Height
 
 	Element:SetLayoutSize( NewSize )
@@ -47,8 +48,8 @@ function Directional:GetComputedFillSize( Element, InnerBoxSize, FillSizePerElem
 
 	Element:PreComputeWidth()
 
-	local Width = Element:GetComputedSize( 1, InnerBoxSize.x - Margin[ 5 ] )
-	Width = self:GetFillElementWidth( Element, Width, FillSizePerElement )
+	local ParentWidth, ParentHeight = InnerBoxSize.x - Margin[ 5 ], InnerBoxSize.y - Margin[ 6 ]
+	local Width = self:GetFillElementWidth( Element, FillSizePerElement, ParentWidth, ParentHeight )
 
 	-- Update the width immediately, this helps prevent needing to auto-wrap text twice.
 	local NewSize = Vector2( Width, OriginalSize.y )
@@ -57,8 +58,7 @@ function Directional:GetComputedFillSize( Element, InnerBoxSize, FillSizePerElem
 	Element:PreComputeHeight( Width )
 
 	-- Now compute the height and set the final size from it.
-	local Height = Element:GetComputedSize( 2, InnerBoxSize.y - Margin[ 6 ] )
-	Height = self:GetFillElementHeight( Element, Height, FillSizePerElement )
+	local Height = self:GetFillElementHeight( Element, FillSizePerElement, ParentHeight, ParentWidth )
 	NewSize.y = Height
 
 	return NewSize
