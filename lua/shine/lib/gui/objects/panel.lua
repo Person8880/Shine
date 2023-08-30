@@ -55,8 +55,6 @@ function Panel:Initialise()
 	self.BlockEventsIfFocusedWindow = true
 	self.AlwaysInMouseFocus = false
 
-	self.SizeNeedsRecompute = true
-
 	self:AddPropertyChangeListener( "AutoHideScrollbar", OnAutoHideScrollbarChanged )
 end
 
@@ -160,9 +158,13 @@ function Panel:SetScrollable()
 
 	self.AllowSmoothScroll = true
 	self.ShowScrollbar = true
-	self.GetAvailableLayoutSize = self.GetAvailableLayoutSizeFromScrollableSize
+	self.IsScrollable = true
 
 	self:SetSize( self:GetSize() )
+
+	if self.Layout then
+		self.Layout.IsScrollable = true
+	end
 end
 
 function Panel:SetAllowSmoothScroll( Bool )
@@ -182,9 +184,13 @@ function Panel:RemoveScrollingBehaviour()
 
 	self.CroppingBox = nil
 	self.ScrollParent = nil
-	self.GetAvailableLayoutSize = nil
 	self:SetShowScrollbar( false )
 	self:SetCroppingBounds( nil )
+	self.IsScrollable = nil
+
+	if self.Layout then
+		self.Layout.IsScrollable = nil
+	end
 end
 
 local function ComputeMaxWidth( Child, PanelWidth )
@@ -305,8 +311,6 @@ end
 function Panel:SetSize( Size )
 	if not self.BaseClass.SetSize( self, Size ) then return false end
 
-	self.SizeNeedsRecompute = true
-
 	if self.CroppingBox then
 		self.CroppingBox:SetSize( Size )
 		self:SetCroppingBounds( Vector2( 0, 0 ), Size )
@@ -332,25 +336,6 @@ end
 
 function Panel:GetMaxHeight()
 	return self.MaxHeight or self:GetSize().y
-end
-
-function Panel:GetAvailableLayoutSizeFromScrollableSize()
-	local Size = self:GetSize()
-	-- If the element's size just changed, let the layout run a first pass with the new size to see if there's any
-	-- overflow. The max width/height will be adjusted afterwards which may trigger a second layout.
-	if self.SizeNeedsRecompute then return Size end
-
-	-- The available size for the layout object is the scrollable space, not just the visible size of the panel.
-	-- This ensures that centre and max aligned elements align based on the scrollable space rather than underflowing.
-	local Width, Height = Size.x, Size.y
-	if self.MaxWidth then
-		Width = Max( Width, self.MaxWidth )
-	end
-	if self.MaxHeight then
-		Height = Max( Height, self.MaxHeight )
-	end
-
-	return Vector2( Width, Height )
 end
 
 --[[
@@ -549,11 +534,6 @@ function Panel:SetMaxWidth( MaxWidth )
 		return
 	end
 
-	if OldMaxWidth ~= MaxWidth and self.Layout and self.Layout:DoesSizeChangeRequireLayoutUpdate( 1 ) then
-		-- Ensure that any centre/max aligned elements have their position updated to account for the new width.
-		self:InvalidateLayout()
-	end
-
 	if not SGUI.IsValid( self.HorizontalScrollbar ) then
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
@@ -639,11 +619,6 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		end
 
 		return
-	end
-
-	if OldMaxHeight ~= MaxHeight and self.Layout and self.Layout:DoesSizeChangeRequireLayoutUpdate( 2 ) then
-		-- Ensure that any centre/max aligned elements have their position updated to account for the new height.
-		self:InvalidateLayout()
 	end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
@@ -878,7 +853,6 @@ end
 
 function Panel:PerformLayout()
 	self.BaseClass.PerformLayout( self )
-	self.SizeNeedsRecompute = false
 
 	if self.CroppingBox then
 		-- Some elements may have moved to no longer be so far down/to the right.

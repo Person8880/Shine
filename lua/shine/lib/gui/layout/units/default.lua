@@ -74,6 +74,9 @@ local function BuildOperator( Meta, Operator )
 					B:GetValue( ParentSize, Element, Axis )
 				)
 			end,
+			DoesValueDependOnChildren = function()
+				return A:DoesValueDependOnChildren() or B:DoesValueDependOnChildren()
+			end,
 			Operator = { A, Key, B }
 		}, Meta )
 	end
@@ -89,6 +92,10 @@ local function NewUnit( Name )
 
 	for MetaKey, Operator in pairs( Operators ) do
 		Meta[ MetaKey ] = BuildOperator( Meta, Operator )
+	end
+
+	function Meta:DoesValueDependOnChildren()
+		return false
 	end
 
 	function Meta:__unm()
@@ -492,6 +499,10 @@ do
 		self.Element = Element
 
 		return self
+	end
+
+	function Auto:DoesValueDependOnChildren()
+		return true
 	end
 
 	function Auto:GetValueFromGivenElement( ParentSize, Element, Axis )

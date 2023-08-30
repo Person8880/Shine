@@ -69,31 +69,8 @@ function Vertical:GetFillElementHeight( Element, FillSizePerElement, ParentHeigh
 	return FillSizePerElement
 end
 
-function Vertical:GetInitialBounds( MinX, MinY, MaxX, MaxY )
-	-- Start from min Y as this is vertical, but use the existing known maximum for X as it won't change.
-	return MaxX, MinY
-end
-
-function Vertical:ApplyCrossAxisSizeToContentSize( ContentWidth, ContentHeight, CrossAxisSize )
-	return CrossAxisSize, ContentHeight
-end
-
-local LayoutSizeChangeGetters = {
-	function( Element ) return Element:GetCrossAxisAlignment() end,
-	function( Element ) return Element:GetAlignment() end
-}
-
-function Vertical:DoesSizeChangeRequireLayoutUpdate( Axis )
-	local AlignmentGetter = LayoutSizeChangeGetters[ Axis ]
-
-	for i = 1, #self.Elements do
-		local Element = self.Elements[ i ]
-		if AlignmentGetter( Element ) ~= LayoutAlignment.MIN then
-			return true
-		end
-	end
-
-	return false
+function Vertical:ApplyContentSize( MainAxisSize, CrossAxisSize )
+	return CrossAxisSize, MainAxisSize
 end
 
 Shine.GUI.Layout:RegisterType( "Vertical", Vertical, "Directional" )

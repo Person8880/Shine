@@ -168,6 +168,20 @@ function Label:ApplyAutoWrapping( Width )
 
 	if CurrentText ~= self.Label:GetText() then
 		MarkSizeDirty( self )
+
+		-- As this may be within elements/layouts that depend on the size of the label, notify everything up the layout
+		-- chain to re-evaluate their layout. This ensures that elements that may come before the label that may want to
+		-- depend on its size get resized and moved accordingly.
+		for Ancestor in self:IterateLayoutAncestors() do
+			Ancestor:InvalidateLayout()
+
+			if not Ancestor.IsLayout then
+				local AutoSize = Ancestor:GetAutoSize()
+				if not AutoSize or not AutoSize[ 2 ]:DoesValueDependOnChildren() then
+					break
+				end
+			end
+		end
 	end
 end
 

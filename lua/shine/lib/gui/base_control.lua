@@ -918,6 +918,7 @@ function ControlMeta:SetLayout( Layout, DeferInvalidation )
 
 	if Layout then
 		Layout:SetParent( self )
+		Layout.IsScrollable = self.IsScrollable
 
 		-- Make the element's content size reflect its layout's, as this is more accurate than manually summing/maxing
 		-- over each element (and avoids computing the same thing twice).
@@ -929,10 +930,6 @@ function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	end
 
 	self:InvalidateLayout( not DeferInvalidation )
-end
-
-function ControlMeta:GetAvailableLayoutSize()
-	return self:GetSize()
 end
 
 local function GetLayoutSpacing( self )
@@ -952,7 +949,7 @@ function ControlMeta:PerformLayout()
 	if not self.Layout then return end
 
 	local Margin, Padding = GetLayoutSpacing( self )
-	local Size = self:GetAvailableLayoutSize()
+	local Size = self:GetSize()
 
 	self.Layout:SetPos( Vector2( Margin[ 1 ] + Padding[ 1 ], Margin[ 2 ] + Padding[ 2 ] ) )
 	self.Layout:SetSize( Vector2(
@@ -1017,13 +1014,10 @@ end
 	single frame that all trigger layout invalidation.
 ]]
 function ControlMeta:InvalidateLayout( Now )
-	if Now then
-		self.LayoutIsInvalid = false
-		self:PerformLayout()
-		return
-	end
-
 	self.LayoutIsInvalid = true
+	if Now then
+		self:HandleLayout( 0, true )
+	end
 end
 
 do
@@ -1595,6 +1589,16 @@ function ControlMeta:IterateChildren()
 	return self.Children:Iterate()
 end
 
+do
+	local function IterateLayoutAncestors( _, Parent )
+		return Parent.LayoutParent or Parent.Parent
+	end
+
+	function ControlMeta:IterateLayoutAncestors()
+		return IterateLayoutAncestors, nil, self
+	end
+end
+
 function ControlMeta:GetParentSize()
 	if self.LayoutParent then
 		return self.LayoutParent:GetSize()
@@ -1656,7 +1660,7 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 end
 
 function ControlMeta:GetContentSizeForAxisFromLayout( Axis )
-	self:HandleLayout( 0 )
+	self:HandleLayout( 0, true )
 
 	local Margin, Padding = GetLayoutSpacing( self )
 	return Padding[ Axis + 4 ] + Margin[ Axis + 4 ] + self.Layout:GetContentSizeForAxis( Axis )
@@ -2810,10 +2814,10 @@ do
 	end
 end
 
-function ControlMeta:HandleLayout( DeltaTime )
+function ControlMeta:HandleLayout( DeltaTime, Force )
 	-- Do not attempt to perform layout operations if the element is currently not visible. Normally this is checked
 	-- in Think(), but this method can also be called by a layout.
-	if not self:GetIsVisible() or self:IsCroppedByParent() then return end
+	if not Force and ( not self:GetIsVisible() or self:IsCroppedByParent() ) then return end
 
 	-- Sometimes layout requires multiple passes to reach the final answer (e.g. if auto-wrapping text).
 	-- Allow up to 5 iterations before stopping and leaving it for the next frame.

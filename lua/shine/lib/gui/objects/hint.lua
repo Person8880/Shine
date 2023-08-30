@@ -41,7 +41,6 @@ function Hint:Initialise()
 					ID = "Flair",
 					Class = "Image",
 					Props = {
-						AutoSize = UnitVector( self.FlairWidth, Percentage.ONE_HUNDRED ),
 						IsSchemed = false
 					}
 				},
@@ -71,6 +70,11 @@ function Hint:Initialise()
 			}
 		}
 	} )
+
+	-- Using an auto-size unit instead of a percentage unit avoids a circular dependency on the height.
+	-- The auto-wrapping label will cause layout to be invalidated up the tree when its size changes which will be
+	-- picked up by the auto-size unit here.
+	Elements.Flair:SetAutoSize( UnitVector( self.FlairWidth, Units.Auto( Elements.HelpTextContainer ) ) )
 
 	self.Flair = Elements.Flair
 	self.HelpText = Elements.HelpText

@@ -11,6 +11,7 @@ local setmetatable = setmetatable
 local StringFormat = string.format
 local TableInsert = table.insert
 local TableRemoveByValue = table.RemoveByValue
+local Vector = Vector
 
 local Layout = {}
 SGUI.Layout = Layout
@@ -23,9 +24,9 @@ BaseLayout.IsLayout = true
 SGUI.AddProperty( BaseLayout, "Parent" )
 -- Unlike elements, changing a layout's position does require re-evaluation, as it will change the calculated GUI tree
 -- position for all children.
-SGUI.AddProperty( BaseLayout, "Pos", nil, { "InvalidatesLayout" } )
+local SetPos = SGUI.AddProperty( BaseLayout, "Pos", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Fill", nil, { "InvalidatesParent" } )
-SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
+local SetSize = SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "AutoSize", nil, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Padding", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Margin", nil, { "InvalidatesParent" } )
@@ -53,6 +54,8 @@ function BaseLayout:Init( Data )
 		self.Fill = true
 	end
 
+	self.IsScrollable = self.Parent and not self.Parent.IsLayout and self.Parent.IsScrollable
+
 	for i = 1, #self.Elements do
 		local Element = self.Elements[ i ]
 		if Element.IsLayout then
@@ -62,6 +65,15 @@ function BaseLayout:Init( Data )
 	end
 
 	return self
+end
+
+-- Copy position/size values to ensure equality checks don't miss changes due to reference equality.
+function BaseLayout:SetPos( Pos )
+	return SetPos( self, Vector( Pos ) )
+end
+
+function BaseLayout:SetSize( Size )
+	return SetSize( self, Vector( Size ) )
 end
 
 -- These are not inherited from the base control as position and size in layouts is just a table field, its not derived
@@ -203,7 +215,8 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"AddPropertyChangeListener",
 	"GetPropertySource",
 	"GetPropertyTarget",
-	"RemovePropertyChangeListener"
+	"RemovePropertyChangeListener",
+	"IterateLayoutAncestors"
 } )
 
 function BaseLayout:HandleLayout()
