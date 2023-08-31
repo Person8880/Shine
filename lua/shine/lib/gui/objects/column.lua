@@ -22,7 +22,7 @@ function Column:Clear()
 end
 
 function Column:SetPadding( Padding )
-	self.Layout:SetPadding( Padding )
+	return self.Layout:SetPadding( Padding )
 end
 
 function Column:GetMaxSizeAlongAxis( Axis )

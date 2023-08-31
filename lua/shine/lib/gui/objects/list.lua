@@ -227,10 +227,12 @@ end
 	Sets the list's size, just a simple vector input.
 ]]
 function List:SetSize( Size )
-	self.BaseClass.SetSize( self, Size )
+	if not self.BaseClass.SetSize( self, Size ) then return false end
+
 	self.CroppingBox:SetSize( Size )
 	self:SetCroppingBounds( Vector2( 0, 0 ), Size )
-	self.Size = Size
+
+	return true
 end
 
 function List:PerformLayout()

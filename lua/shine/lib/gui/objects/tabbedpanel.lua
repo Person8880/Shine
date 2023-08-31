@@ -98,7 +98,7 @@ SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
 SGUI.AddProperty( TabPanel, "Expanded", true, { "InvalidatesLayout" } )
 SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.Integer( Units.HighResScaled( 48 ) ) )
 SGUI.AddProperty( TabPanel, "TabListPaddingAmount", Units.HighResScaled( 8 ) )
-SGUI.AddProperty( TabPanel, "VerticalLayoutMode", TabPanel.VerticalLayoutModeType.LEGACY )
+local SetVerticalLayoutMode = SGUI.AddProperty( TabPanel, "VerticalLayoutMode", TabPanel.VerticalLayoutModeType.LEGACY )
 
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )
@@ -161,12 +161,10 @@ end
 
 do
 	local function GetVerticalTabLayoutPadding( self, Expanded )
-		if not Expanded or self.VerticalLayoutMode ~= self.VerticalLayoutModeType.COMPACT then return nil end
-
-		local PaddingAmount = self:GetTabListPaddingAmount()
-		return Units.Spacing(
-			PaddingAmount, PaddingAmount, PaddingAmount, PaddingAmount
-		)
+		if not Expanded or self.VerticalLayoutMode ~= self.VerticalLayoutModeType.COMPACT then
+			return nil
+		end
+		return Units.Spacing.Uniform( self:GetTabListPaddingAmount() )
 	end
 
 	local function GetVerticalTabLayoutSize( self, Expanded )
@@ -407,7 +405,6 @@ do
 		self.TabPanel:RecomputeMaxWidth()
 	end
 
-	local SetVerticalLayoutMode = TabPanel.SetVerticalLayoutMode
 	function TabPanel:SetVerticalLayoutMode( VerticalLayoutMode )
 		if not SetVerticalLayoutMode( self, VerticalLayoutMode ) then return false end
 		if self.Horizontal then return true end
@@ -450,16 +447,19 @@ function TabPanel:SetTabWidth( Width )
 	self:InvalidateLayout()
 end
 
+local function SetupTabButtonWithAutoWidth( self, TabButton, PaddingAmount )
+	-- Button size is constrained to not exceed 25% width, so may need to shorten text.
+	TabButton:SetTextAutoEllipsis( true )
+	self.AutoTabWidth:AddValue( Units.Auto( TabButton ) + PaddingAmount )
+end
+
 local function RefreshAutoTabWidth( self, PaddingAmount )
 	self.AutoTabWidth:Clear()
 
 	PaddingAmount = PaddingAmount * 2
 
 	for i = 1, self.NumTabs do
-		local TabButton = self.Tabs[ i ].TabButton
-		TabButton:SetTextAutoEllipsis( true )
-		TabButton.AutoTabWidth = Units.Auto( TabButton ) + PaddingAmount
-		self.AutoTabWidth:AddValue( TabButton.AutoTabWidth )
+		SetupTabButtonWithAutoWidth( self, self.Tabs[ i ].TabButton, PaddingAmount )
 	end
 
 	self:UpdateSizes()
@@ -538,12 +538,7 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	TabButton:SetIcon( IconName, IconFont, IconFontScale )
 
 	if self.AutoTabWidth then
-		-- Button size is constrained to not exceed 25% width, so may need to shorten text.
-		TabButton:SetTextAutoEllipsis( true )
-
-		local PaddingAmount = self:GetTabListPaddingAmount() * 2
-		TabButton.AutoTabWidth = Units.Auto( TabButton ) + PaddingAmount
-		self.AutoTabWidth:AddValue( TabButton.AutoTabWidth )
+		SetupTabButtonWithAutoWidth( self, TabButton, self:GetTabListPaddingAmount() * 2 )
 
 		-- Auto-align all button text after each button's icon to account for icon size differences.
 		if TabButton.Icon then

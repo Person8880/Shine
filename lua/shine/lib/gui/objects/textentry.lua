@@ -23,6 +23,8 @@ local TableConcat = table.concat
 local TableNew = require "table.new"
 local TableRemove = table.remove
 local tonumber = tonumber
+local Vector2 = Vector2
+local Vector = Vector
 
 local TextEntry = {}
 
@@ -205,10 +207,21 @@ function TextEntry:OnAutoInheritAlphaChanged( IsAutoInherit )
 	end
 end
 
+local function RefreshWidth( self, InnerBoxSize, Padding )
+	self.Width = Max( InnerBoxSize.x - ( Padding * 2 ), 0 )
+end
+
 function TextEntry:SetTextPadding( Padding )
+	if self.Padding == Padding then return false end
+
 	self.Padding = Padding
 	self.TextOffset = Min( self.TextOffset, Padding )
+
+	RefreshWidth( self, self.InnerBox:GetSize(), Padding )
+
 	self:InvalidateLayout()
+
+	return true
 end
 
 function TextEntry:GetTextHeight()
@@ -223,12 +236,10 @@ function TextEntry:GetContentSizeForAxis( Axis )
 	return self:GetTextHeight()
 end
 
-function TextEntry:SetSize( SizeVec )
-	self.BaseClass.SetSize( self, SizeVec )
-
+local function RefreshInternalSize( self, Size, BorderSize )
 	local InnerBoxSize = Vector2(
-		Max( SizeVec.x - self.BorderSize.x * 2, 0 ),
-		Max( SizeVec.y - self.BorderSize.y * 2, 0 )
+		Max( Size.x - BorderSize.x * 2, 0 ),
+		Max( Size.y - BorderSize.y * 2, 0 )
 	)
 	self.InnerBox:SetSize( InnerBoxSize )
 
@@ -240,10 +251,16 @@ function TextEntry:SetSize( SizeVec )
 		self.InnerBox:SetShader( "shaders/GUIBasic.surface_shader" )
 	end
 
-	self.Width = Max( InnerBoxSize.x - ( self.Padding * 2 ), 0 )
+	RefreshWidth( self, InnerBoxSize, self.Padding )
 	self.Height = InnerBoxSize.y
+end
 
-	self:InvalidateLayout()
+function TextEntry:SetSize( SizeVec )
+	if not self.BaseClass.SetSize( self, SizeVec ) then return false end
+
+	RefreshInternalSize( self, SizeVec, self.BorderSize )
+
+	return true
 end
 
 function TextEntry:GetInnerBoxTargetAlpha()
@@ -327,9 +344,16 @@ function TextEntry:SetHighlightColour( Col )
 end
 
 function TextEntry:SetBorderSize( BorderSize )
+	if self.BorderSize == BorderSize then return false end
+
 	self.InnerBox:SetPosition( BorderSize )
-	self.BorderSize = BorderSize
-	self:SetSize( self:GetSize() )
+	self.BorderSize = Vector( BorderSize )
+
+	RefreshInternalSize( self, self:GetSize(), BorderSize )
+
+	self:InvalidateLayout()
+
+	return true
 end
 
 local function GetPlaceholderTextPos( self )
@@ -418,8 +442,8 @@ function TextEntry:SetupCaret()
 
 	local Height = self:GetTextHeight() * 0.8
 
-	Caret:SetSize( Vector( 1, Height, 0 ) )
-	SelectionBox:SetSize( Vector( SelectionBox:GetSize().x, Height, 0 ) )
+	Caret:SetSize( Vector2( 1, Height ) )
+	SelectionBox:SetSize( Vector2( SelectionBox:GetSize().x, Height ) )
 
 	if not self.Width then return end
 
@@ -429,15 +453,15 @@ function TextEntry:SetupCaret()
 	if Width > self.Width then
 		local Diff = -( Width - self.Width )
 
-		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
-		Caret:SetPosition( Vector( Width + Diff + self.CaretOffset, self.Height * 0.5 - Height * 0.5, 0 ) )
+		TextObj:SetPosition( Vector2( Diff, 0 ) )
+		Caret:SetPosition( Vector2( Width + Diff + self.CaretOffset, self.Height * 0.5 - Height * 0.5 ) )
 
 		self.TextOffset = Diff
 	else
 		self.TextOffset = self.Padding
 
-		Caret:SetPosition( Vector( Width + self.Padding + self.CaretOffset, self.Height * 0.5 - Height * 0.5, 0 ) )
-		TextObj:SetPosition( Vector( self.Padding, 0, 0 ) )
+		Caret:SetPosition( Vector2( Width + self.Padding + self.CaretOffset, self.Height * 0.5 - Height * 0.5 ) )
+		TextObj:SetPosition( Vector2( self.Padding, 0 ) )
 	end
 end
 
@@ -493,9 +517,9 @@ function TextEntry:SetCaretPos( Column )
 
 	local Caret = self.Caret
 	local Pos = Caret:GetPosition()
-	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
+	Caret:SetPosition( Vector2( NewPos, Pos.y ) )
 
-	self.TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
+	self.TextObj:SetPosition( Vector2( self.TextOffset, 0 ) )
 end
 
 function TextEntry:ResetSelectionBounds()
@@ -578,9 +602,9 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 
 	if SkipAnim then
 		self:StopResizing( self.SelectionBox )
-		self.SelectionBox:SetSize( Vector( Width, self.Caret:GetSize().y, 0 ) )
+		self.SelectionBox:SetSize( Vector2( Width, self.Caret:GetSize().y ) )
 	else
-		self:SizeTo( self.SelectionBox, nil, Vector( Width, self.Caret:GetSize().y, 0 ), 0, self.SelectionEasingTime )
+		self:SizeTo( self.SelectionBox, nil, Vector2( Width, self.Caret:GetSize().y ), 0, self.SelectionEasingTime )
 	end
 end
 

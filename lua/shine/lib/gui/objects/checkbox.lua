@@ -6,7 +6,6 @@
 
 local SGUI = Shine.GUI
 
-local rawequal = rawequal
 local RoundTo = math.RoundTo
 
 local CheckBox = {}

@@ -22,7 +22,7 @@ function Row:Clear()
 end
 
 function Row:SetPadding( Padding )
-	self.Layout:SetPadding( Padding )
+	return self.Layout:SetPadding( Padding )
 end
 
 function Row:GetMaxSizeAlongAxis( Axis )

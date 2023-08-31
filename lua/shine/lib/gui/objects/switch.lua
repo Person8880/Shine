@@ -13,7 +13,7 @@ local ToUnit = SGUI.Layout.ToUnit
 
 local Switch = {}
 
-SGUI.AddProperty( Switch, "Active", false )
+local SetActive = SGUI.AddProperty( Switch, "Active", false )
 SGUI.AddProperty( Switch, "ActiveBackgroundColour", Colour( 0, 1, 0 ) )
 SGUI.AddProperty( Switch, "ClickSound", "sound/NS2.fev/common/button_enter" )
 SGUI.AddProperty( Switch, "InactiveBackgroundColour", Colour( 0, 0, 0, 0.25 ) )
@@ -109,7 +109,6 @@ function Switch:OnAutoInheritAlphaChanged( IsAutoInherit )
 	end
 end
 
-local SetActive = Switch.SetActive
 function Switch:SetActive( Active, SkipAnim )
 	if not SetActive( self, Active ) then return false end
 

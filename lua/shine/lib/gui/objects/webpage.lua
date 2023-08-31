@@ -14,6 +14,7 @@ local StringByte = string.byte
 local StringExplode = string.Explode
 local StringFormat = string.format
 local StringGSub = string.gsub
+local StringMatch = string.match
 local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local StringUTF8CodePoint = string.UTF8CodePoint
@@ -425,7 +426,15 @@ function WebpageControls:Initialise()
 				Enabled = self.InputEnabled,
 				-- If input is enabled, allow navigation when pressing enter.
 				OnEnter = function()
-					self.Webpage:LoadURL( self.URLEntry:GetText() )
+					local URL = self.URLEntry:GetText()
+					local Protocol = StringMatch( URL, "^(%w+)://" )
+					if not Protocol then
+						URL = StringFormat( "https://%s", URL )
+					elseif Protocol ~= "http" and Protocol ~= "https" then
+						return
+					end
+
+					self.Webpage:LoadURL( URL )
 					self.URLEntry:LoseFocus()
 				end
 			}

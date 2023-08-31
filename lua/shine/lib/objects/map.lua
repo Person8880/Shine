@@ -544,7 +544,7 @@ end
 --[[
 	Returns a table copy of the multimap as a standard Lua table of keys and table of values.
 
-	Note that each table is directly linked to the multimap, so	should not be edited.
+	Note that each table is directly linked to the multimap, so should not be edited.
 ]]
 function Multimap:AsTable()
 	local Table = {}

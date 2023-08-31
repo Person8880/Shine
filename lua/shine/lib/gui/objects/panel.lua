@@ -504,8 +504,6 @@ function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
 end
 
 function Panel:SetMaxWidth( MaxWidth )
-	local OldMaxWidth = self.MaxWidth
-
 	self.MaxWidth = MaxWidth
 
 	if not self.ShowScrollbar or not self.HorizontalScrollingEnabled then return end
@@ -521,8 +519,6 @@ function Panel:SetMaxWidth( MaxWidth )
 			local Pos = self.ScrollParent:GetPosition()
 			Pos.x = 0
 			self.ScrollParent:SetPosition( Pos )
-
-			self:InvalidateLayout()
 		end
 
 		if self.OverflowX then
@@ -609,8 +605,6 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			self.ScrollParent:SetPosition( Pos )
 
 			self:OnRemoveScrollbar()
-
-			self:InvalidateLayout()
 		end
 
 		if self.OverflowY then
@@ -856,8 +850,8 @@ function Panel:PerformLayout()
 
 	if self.CroppingBox then
 		-- Some elements may have moved to no longer be so far down/to the right.
-		-- This may trigger layout invalidation again if the max width or height change as layout elements may be
-		-- positioned based on the scrollable area.
+		-- The layout will have already positioned centre/max aligned elements based on its new content size, this just
+		-- updates the scrollbars to match it.
 		self:RecomputeMaxHeight()
 		self:RecomputeMaxWidth()
 	end
