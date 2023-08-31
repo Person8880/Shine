@@ -329,7 +329,7 @@ end
 function TextEntry:SetBorderSize( BorderSize )
 	self.InnerBox:SetPosition( BorderSize )
 	self.BorderSize = BorderSize
-	self:SetSize( self.Background:GetSize() )
+	self:SetSize( self:GetSize() )
 end
 
 local function GetPlaceholderTextPos( self )

@@ -19,6 +19,7 @@ local StringFormat = string.format
 local TableNew = require "table.new"
 local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
+local Vector = Vector
 
 local Map = Shine.Map
 local Multimap = Shine.Multimap
@@ -1028,14 +1029,25 @@ do
 	end
 end
 
+local function Get2DSize( self )
+	local Size = self.Background:GetSize()
+	-- Normalise the z-component to 0, this can be returned as 1 which breaks equality with Vector2...
+	Size.z = 0
+	return Size
+end
+
 --[[
 	Sets the size of the control (background), and invalidates the control's layout.
 ]]
 function ControlMeta:SetSize( SizeVec )
-	local OldSize = self.Background:GetSize()
+	local OldSize = Get2DSize( self )
 	if OldSize == SizeVec then return false end
 
-	self.Size = SizeVec
+	-- Apply the size values to a new vector to avoid the caller having a direct reference to the internal value.
+	OldSize.x = SizeVec.x
+	OldSize.y = SizeVec.y
+
+	self.Size = OldSize
 
 	self.Background:SetSize( SizeVec )
 	self:InvalidateLayout()
@@ -1048,6 +1060,8 @@ function ControlMeta:SetSize( SizeVec )
 
 	return true
 end
+
+ControlMeta.GetSize = Get2DSize
 
 --[[
 	A simple shortcut method for setting font and potentially scale
@@ -1756,10 +1770,6 @@ function ControlMeta:GetComputedMargin()
 	return self:ComputeSpacing( self.Margin )
 end
 
-function ControlMeta:GetSize()
-	return self.Background:GetSize()
-end
-
 function ControlMeta:GetSizeForAxis( Axis )
 	return self:GetSize()[ VectorAxis[ Axis ] ]
 end
@@ -1775,9 +1785,13 @@ end
 ]]
 function ControlMeta:SetPos( Pos )
 	local OldPos = self.Background:GetPosition()
-	if Pos == OldPos then return end
+	if Pos == OldPos then return false end
 
-	self.Pos = Pos
+	-- Apply the position values to a new vector to avoid the caller having a direct reference to the internal value.
+	OldPos.x = Pos.x
+	OldPos.y = Pos.y
+
+	self.Pos = OldPos
 
 	self.Background:SetPosition( Pos )
 	self:InvalidateMouseState()
@@ -1786,6 +1800,8 @@ function ControlMeta:SetPos( Pos )
 	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
 		self:InvalidateCroppingState()
 	end
+
+	return true
 end
 
 function ControlMeta:GetPos()
@@ -1847,7 +1863,10 @@ do
 	end
 
 	local function SetLayoutPosWithTransition( self, Pos )
-		if self.LayoutPos == Pos then return end
+		if self.LayoutPos == Pos then return false end
+
+		-- Copy the position to avoid callers having a reference to the internal value.
+		Pos = Vector( Pos )
 
 		self.LayoutPos = Pos
 
@@ -1866,22 +1885,24 @@ do
 				-- effort to ease them. Just update the position immediately.
 				self:StopMoving( self.Background )
 				self:SetPos( Pos )
-				return
+				return true
 			end
 		end
 
 		self.LayoutPosTransition.EndValue = Pos
 		self.LayoutPosTransition.StartValue = nil
 		self:ApplyTransition( self.LayoutPosTransition )
+
+		return true
 	end
 
 	local function SetLayoutPos( self, Pos )
 		-- First update, set the position immediately.
-		self.LayoutPos = Pos
-		self:SetPos( Pos )
+		self.LayoutPos = Vector( Pos )
 		-- Subsequent position updates will be eased.
 		self.SetLayoutPos = SetLayoutPosWithTransition
 		self.GetLayoutPos = GetLayoutPos
+		return self:SetPos( Pos )
 	end
 
 	local function GetLayoutSize( self )
@@ -1889,7 +1910,10 @@ do
 	end
 
 	local function SetLayoutSizeWithTransition( self, Size )
-		if self.LayoutSize == Size then return end
+		if self.LayoutSize == Size then return false end
+
+		-- Copy the size to avoid callers having a reference to the internal value.
+		Size = Vector( Size )
 
 		self.LayoutSize = Size
 
@@ -1906,22 +1930,24 @@ do
 				-- effort to ease them. Just update the size immediately.
 				self:StopResizing( self.Background )
 				self:SetSize( Size )
-				return
+				return true
 			end
 		end
 
 		self.LayoutSizeTransition.EndValue = Size
 		self.LayoutSizeTransition.StartValue = nil
 		self:ApplyTransition( self.LayoutSizeTransition )
+
+		return true
 	end
 
 	local function SetLayoutSize( self, Size )
 		-- First update, set the size immediately.
-		self.LayoutSize = Size
-		self:SetSize( Size )
+		self.LayoutSize = Vector( Size )
 		-- Subsequent size updates will be eased.
 		self.SetLayoutSize = SetLayoutSizeWithTransition
 		self.GetLayoutSize = GetLayoutSize
+		return self:SetSize( Size )
 	end
 
 	--[[
@@ -1936,7 +1962,7 @@ do
 		respectively).
 	]]
 	function ControlMeta:SetLayoutPosTransition( Transition )
-		if self.LayoutPosTransition == Transition then return end
+		if self.LayoutPosTransition == Transition then return false end
 
 		self.LayoutPosTransition = Transition
 
@@ -1960,6 +1986,8 @@ do
 			self.GetLayoutPos = nil
 			self.LayoutPos = nil
 		end
+
+		return true
 	end
 
 	--[[
@@ -1974,7 +2002,7 @@ do
 		respectively).
 	]]
 	function ControlMeta:SetLayoutSizeTransition( Transition )
-		if self.LayoutSizeTransition == Transition then return end
+		if self.LayoutSizeTransition == Transition then return false end
 
 		self.LayoutSizeTransition = Transition
 
@@ -1998,6 +2026,8 @@ do
 			self.GetLayoutSize = nil
 			self.LayoutSize = nil
 		end
+
+		return true
 	end
 end
 
