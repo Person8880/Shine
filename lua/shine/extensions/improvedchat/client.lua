@@ -6,7 +6,6 @@ local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local ImageElement = require "shine/lib/gui/richtext/elements/image"
-local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
 local EmojiRepository = require "shine/extensions/improvedchat/emoji_repository"

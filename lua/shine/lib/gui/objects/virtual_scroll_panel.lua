@@ -85,7 +85,7 @@ function VirtualScrollPanel:Initialise()
 end
 
 function VirtualScrollPanel:ComputeRowHeight()
-	return self.RowHeight:GetValue( self.Size.y, self, 2 )
+	return self.RowHeight:GetValue( self.Size.y, self, 2, self.Size.x )
 end
 
 function VirtualScrollPanel:SetScrollbarWidth( ScrollbarWidth )

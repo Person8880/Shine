@@ -22,7 +22,7 @@ SGUI.AddProperty( Switch, "KnobPadding", Units.MultipleOf2( Units.HighResScaled(
 SGUI.AddBoundColourProperty( Switch, "KnobColour", "SwitchKnob:SetColor" )
 
 local function GetAbsolutePadding( self, Padding, Size )
-	return ToUnit( Padding ):GetValue( self, Size.x, 1 )
+	return ToUnit( Padding ):GetValue( self, Size.x, 1, Size.y )
 end
 
 local function GetKnobPosition( Active, AbsolutePadding, Size )

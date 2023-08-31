@@ -68,10 +68,10 @@ local function BuildOperator( Meta, Operator )
 		B = ToUnit( B )
 
 		return setmetatable( {
-			GetValue = function( self, ParentSize, Element, Axis )
+			GetValue = function( self, ParentSize, Element, Axis, OppositeAxisParentSize )
 				return Apply(
-					A:GetValue( ParentSize, Element, Axis ),
-					B:GetValue( ParentSize, Element, Axis )
+					A:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize ),
+					B:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
 				)
 			end,
 			DoesValueDependOnChildren = function()
@@ -100,8 +100,8 @@ local function NewUnit( Name )
 
 	function Meta:__unm()
 		return setmetatable( {
-			GetValue = function( _, ParentSize, Element, Axis )
-				return -self:GetValue( ParentSize, Element, Axis )
+			GetValue = function( _, ParentSize, Element, Axis, OppositeAxisParentSize )
+				return -self:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
 			end,
 			Operator = { "-", self }
 		}, Meta )
@@ -109,8 +109,8 @@ local function NewUnit( Name )
 
 	function Meta:__mod( Mod )
 		return setmetatable( {
-			GetValue = function( _, ParentSize, Element, Axis )
-				return self:GetValue( ParentSize, Element, Axis ) % Mod
+			GetValue = function( _, ParentSize, Element, Axis, OppositeAxisParentSize )
+				return self:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize ) % Mod
 			end,
 			Operator = { self, "%", Mod }
 		}, Meta )
@@ -118,8 +118,8 @@ local function NewUnit( Name )
 
 	function Meta:__pow( Power )
 		return setmetatable( {
-			GetValue = function( _, ParentSize, Element, Axis )
-				return self:GetValue( ParentSize, Element, Axis ) ^ Power
+			GetValue = function( _, ParentSize, Element, Axis, OppositeAxisParentSize )
+				return self:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize ) ^ Power
 			end,
 			Operator = { self, "^", Power }
 		}, Meta )
@@ -244,8 +244,8 @@ do
 
 	function UnitVector:GetValue( ParentSize, Element )
 		return Vector2(
-			self[ 1 ]:GetValue( ParentSize.x, Element, 1 ),
-			self[ 2 ]:GetValue( ParentSize.y, Element, 2 )
+			self[ 1 ]:GetValue( ParentSize.x, Element, 1, ParentSize.y ),
+			self[ 2 ]:GetValue( ParentSize.y, Element, 2, ParentSize.x )
 		)
 	end
 
@@ -562,10 +562,13 @@ do
 		return self
 	end
 
-	function Max:GetValue( ParentSize, Element, Axis )
+	function Max:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
 		local MaxValue = 0
 		for i = 1, self.NumValues do
-			MaxValue = MathMax( MaxValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
+			MaxValue = MathMax(
+				MaxValue,
+				self.Values[ i ]:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
+			)
 		end
 		return MaxValue
 	end
@@ -593,8 +596,8 @@ do
 		return self
 	end
 
-	function Integer:GetValue( ParentSize, Element, Axis )
-		return Ceil( self.Value:GetValue( ParentSize, Element, Axis ) )
+	function Integer:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
+		return Ceil( self.Value:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize ) )
 	end
 
 	function Integer:__eq( Other )
@@ -640,10 +643,13 @@ do
 		return self
 	end
 
-	function Min:GetValue( ParentSize, Element, Axis )
+	function Min:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
 		local MinValue = Huge
 		for i = 1, self.NumValues do
-			MinValue = MathMin( MinValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
+			MinValue = MathMin(
+				MinValue,
+				self.Values[ i ]:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
+			)
 		end
 		return MinValue
 	end
@@ -672,8 +678,8 @@ do
 		return self
 	end
 
-	function MultipleOf2:GetValue( ParentSize, Element, Axis )
-		return RoundTo( Ceil( self.Value:GetValue( ParentSize, Element, Axis ) ), 2 )
+	function MultipleOf2:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize )
+		return RoundTo( Ceil( self.Value:GetValue( ParentSize, Element, Axis, OppositeAxisParentSize ) ), 2 )
 	end
 
 	function MultipleOf2:__eq( Other )

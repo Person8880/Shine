@@ -6,7 +6,6 @@ local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
-local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
 local Max = math.max

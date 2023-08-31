@@ -1358,10 +1358,10 @@ do
 		return Colour(
 			-- Use the y-axis as the reference value as it makes more sense to want to make borders relative to height
 			-- rather than width, most elements are wider than they are tall.
-			Clamp( BorderRadii[ 1 ] and BorderRadii[ 1 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius ),
-			Clamp( BorderRadii[ 2 ] and BorderRadii[ 2 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius ),
-			Clamp( BorderRadii[ 3 ] and BorderRadii[ 3 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius ),
-			Clamp( BorderRadii[ 4 ] and BorderRadii[ 4 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius )
+			Clamp( BorderRadii[ 1 ] and BorderRadii[ 1 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 2 ] and BorderRadii[ 2 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 3 ] and BorderRadii[ 3 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 4 ] and BorderRadii[ 4 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius )
 		)
 	end
 
@@ -1594,8 +1594,8 @@ function ControlMeta:ComputeAbsolutePosition( ParentSize )
 	end
 
 	return Vector2(
-		OriginX + LeftOffset:GetValue( ParentSize.x, self, 1 ),
-		OriginY + TopOffset:GetValue( ParentSize.y, self, 2 )
+		OriginX + LeftOffset:GetValue( ParentSize.x, self, 1, ParentSize.y ),
+		OriginY + TopOffset:GetValue( ParentSize.y, self, 2, ParentSize.x )
 	)
 end
 
@@ -1748,10 +1748,10 @@ function ControlMeta:ComputeSpacing( Spacing )
 
 	local ParentSize = self:GetParentSize()
 	local Computed = {
-		Spacing[ 1 ]:GetValue( ParentSize.x, self, 1 ),
-		Spacing[ 2 ]:GetValue( ParentSize.y, self, 2 ),
-		Spacing[ 3 ]:GetValue( ParentSize.x, self, 1 ),
-		Spacing[ 4 ]:GetValue( ParentSize.y, self, 2 ),
+		Spacing[ 1 ]:GetValue( ParentSize.x, self, 1, ParentSize.y ),
+		Spacing[ 2 ]:GetValue( ParentSize.y, self, 2, ParentSize.x ),
+		Spacing[ 3 ]:GetValue( ParentSize.x, self, 1, ParentSize.y ),
+		Spacing[ 4 ]:GetValue( ParentSize.y, self, 2, ParentSize.x ),
 		0,
 		0
 	}
