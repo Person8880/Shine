@@ -1435,7 +1435,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 
 	SetupRenderDeviceResetCheck()
 
-	Hook.Broadcast( "OnSGUILoaded" )
+	Hook.BroadcastOnce( "OnSGUILoaded" )
 end, Hook.MAX_PRIORITY )
 
 Hook.CallAfterFileLoad( "lua/Commander_Client.lua", function()
