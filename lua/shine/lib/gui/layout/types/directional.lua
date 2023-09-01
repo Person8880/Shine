@@ -100,37 +100,36 @@ function Directional:LayoutElements( Elements, Context )
 	local UpdatePositionBefore = PositionUpdaters.Before[ IsMin ]
 	local UpdatePositionAfter = PositionUpdaters.After[ IsMin ]
 
-	local Padding = Context.Padding
-	local Pos = Context.Pos
 	local InnerBoxSize = Context.InnerBoxSize
-	local Size = Context.Size
-	local FillSizePerElement = Context.FillSizePerElement
 	local Margins = Elements.Margins
+	local Sizes = Elements.Sizes
 
 	-- The start position depends on the direction and alignment.
 	-- Vertical will start either top left or bottom left, horizontal top left or top right.
-	local X, Y = self:GetStartPos( Pos, Size, Padding, Alignment, Context )
+	local X, Y = self:GetStartPos( Context.Pos, Context.Size, Alignment, Context )
 
 	for i = 1, Elements[ 0 ] do
 		local Element = Elements[ i ]
 		local Margin = Margins[ Element ]
 		local MinW, MinH = self:GetMinMargin( Margin )
 		local MaxW, MaxH = self:GetMaxMargin( Margin )
-		local SizeW, SizeH = self:GetElementSizeOffset( Element:GetLayoutSize() )
+		local ElementSize = Sizes[ Element ]
+		local SizeW, SizeH = self:GetElementSizeOffset( ElementSize )
 
 		X, Y = UpdatePositionBefore( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 
-		self:SetElementPos( Element, X, Y, Margin, InnerBoxSize )
+		self:SetElementPos( Element, X, Y, Margin, InnerBoxSize, ElementSize )
 
 		X, Y = UpdatePositionAfter( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 	end
 end
 
 local function NewElementList( NumElements )
-	local ElementList = TableNew( NumElements, 2 )
+	local ElementList = TableNew( NumElements + 1, 3 )
 	ElementList[ 0 ] = 0
 	ElementList.TotalSize = 0
 	ElementList.Margins = TableNew( 0, NumElements )
+	ElementList.Sizes = TableNew( 0, NumElements )
 	return ElementList
 end
 
@@ -153,12 +152,11 @@ function Directional:PerformLayout()
 	local Pos = self:GetPos()
 
 	-- Keep track of min and max aligned elements separately, as they need different layout rules.
-	local AlignedElements = {
-		[ LayoutAlignment.MIN ] = NewElementList( NumElements ),
-		[ LayoutAlignment.MAX ] = NewElementList( NumElements ),
-		[ LayoutAlignment.CENTRE ] = NewElementList( NumElements ),
-		Fill = TableNew( NumElements, 0 )
-	}
+	local AlignedElements = TableNew( 4, 0 )
+	AlignedElements[ LayoutAlignment.MIN ] = NewElementList( NumElements )
+	AlignedElements[ LayoutAlignment.MAX ] = NewElementList( NumElements )
+	AlignedElements[ LayoutAlignment.CENTRE ] = NewElementList( NumElements )
+	AlignedElements[ 4 ] = TableNew( NumElements, 0 )
 
 	-- Pre-compute the size of each fill element by setting the size of fixed-size elements upfront.
 	local FillSize = self:GetFillSize( InnerBoxSize )
@@ -182,6 +180,7 @@ function Directional:PerformLayout()
 				local SizeUsedUp = self:GetFillSize( CurrentSize ) + self:GetMarginSize( Margin )
 
 				ElementList.TotalSize = ElementList.TotalSize + SizeUsedUp
+				ElementList.Sizes[ Element ] = CurrentSize
 
 				-- If the element is not set to fill the space, then it will use up its margin + size.
 				FillSize = FillSize - SizeUsedUp
@@ -195,7 +194,7 @@ function Directional:PerformLayout()
 				FillSize = FillSize - SizeUsedUp
 				NumberOfFillElements = NumberOfFillElements + 1
 
-				AlignedElements.Fill[ NumberOfFillElements ] = Element
+				AlignedElements[ 4 ][ NumberOfFillElements ] = Element
 			end
 		end
 	end
@@ -203,7 +202,7 @@ function Directional:PerformLayout()
 	-- Once the fill size is known, apply it to every fill element to get the total content size.
 	local FillSizePerElement = NumberOfFillElements == 0 and 0 or Max( FillSize, 0 ) / NumberOfFillElements
 	for i = 1, NumberOfFillElements do
-		local Element = AlignedElements.Fill[ i ]
+		local Element = AlignedElements[ 4 ][ i ]
 		local ElementList = AlignedElements[ Element:GetAlignment() ]
 		local CurrentSize = self:SetComputedFillSize(
 			Element,
@@ -213,6 +212,7 @@ function Directional:PerformLayout()
 		)
 
 		ElementList.TotalSize = ElementList.TotalSize + self:GetFillSize( CurrentSize )
+		ElementList.Sizes[ Element ] = CurrentSize
 		CrossAxisSize = Max( CrossAxisSize, self:GetCrossAxisSize( CurrentSize ) )
 	end
 
@@ -238,32 +238,22 @@ function Directional:PerformLayout()
 		InnerBoxSize.x = Max( Width, InnerBoxSize.x )
 		InnerBoxSize.y = Max( Height, InnerBoxSize.y )
 
-		self.Size.x = Max( self.ContentWidth, self.Size.x )
-		self.Size.y = Max( self.ContentHeight, self.Size.y )
+		Size.x = Max( self.ContentWidth, Size.x )
+		Size.y = Max( self.ContentHeight, Size.y )
 	end
 
-	local CentreAlignedSize = AlignedElements[ LayoutAlignment.CENTRE ].TotalSize
 	local MinX, MinY = Pos.x + Padding[ 1 ], Pos.y + Padding[ 2 ]
 
 	-- This table "context" just saves a lot of method parameters.
-	local Context = {
-		Alignment = LayoutAlignment.MIN,
-		AvailableFillSize = self:GetFillSize( InnerBoxSize ),
-		NumberOfFillElements = 0,
-		Padding = Padding,
-		Pos = Pos,
-		InnerBoxSize = InnerBoxSize,
-		Size = Size,
-		FillSizePerElement = FillSizePerElement,
-		-- These are the min and max bounds of the layout's content, after applying padding.
-		-- The total size of this box is "InnerBoxSize".
-		MinX = MinX,
-		MinY = MinY,
-		MaxX = MinX + InnerBoxSize.x,
-		MaxY = MinY + InnerBoxSize.y
-	}
+	local Context = TableNew( 0, 9 )
+	Context.Alignment = LayoutAlignment.MIN
+	Context.Pos = Pos
+	Context.InnerBoxSize = InnerBoxSize
+	Context.Size = Size
+	Context.MinX = MinX
+	Context.MinY = MinY
 
-	-- Layout each alignment in sequence, applying the fill size to elements set to fill.
+	-- Layout each alignment in sequence, starting with the MIN aligned elements.
 	Elements = AlignedElements[ Context.Alignment ]
 
 	if Elements[ 0 ] > 0 then
@@ -274,6 +264,8 @@ function Directional:PerformLayout()
 	Elements = AlignedElements[ Context.Alignment ]
 
 	if Elements[ 0 ] > 0 then
+		Context.MaxX = MinX + InnerBoxSize.x
+		Context.MaxY = MinY + InnerBoxSize.y
 		self:LayoutElements( Elements, Context )
 	end
 
@@ -281,7 +273,7 @@ function Directional:PerformLayout()
 	Elements = AlignedElements[ Context.Alignment ]
 
 	if Elements[ 0 ] > 0 then
-		Context.CentreAlignedSize = CentreAlignedSize
+		Context.CentreAlignedSize = AlignedElements[ LayoutAlignment.CENTRE ].TotalSize
 		self:LayoutElements( Elements, Context )
 	end
 

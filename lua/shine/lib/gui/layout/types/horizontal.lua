@@ -9,20 +9,20 @@ local Vector2 = Vector2
 local Horizontal = {}
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
-
-function Horizontal:GetStartPos( Pos, Size, Padding, Alignment, Context )
-	if Alignment == LayoutAlignment.CENTRE then
-		local X = Pos.x + Size.x * 0.5 - Context.CentreAlignedSize * 0.5
-		local Y = Context.MinY
-
-		return X, Y
+local StartPositionGetters = {
+	[ LayoutAlignment.MIN ] = function( Pos, Size, Context )
+		return Context.MinX, Context.MinY
+	end,
+	[ LayoutAlignment.CENTRE ] = function( Pos, Size, Context )
+		return Pos.x + Size.x * 0.5 - Context.CentreAlignedSize * 0.5, Context.MinY
+	end,
+	[ LayoutAlignment.MAX ] = function( Pos, Size, Context )
+		return Context.MaxX, Context.MinY
 	end
+}
 
-	local IsMin = Alignment == LayoutAlignment.MIN
-	local X = IsMin and Context.MinX or Context.MaxX
-	local Y = Context.MinY
-
-	return X, Y
+function Horizontal:GetStartPos( Pos, Size, Alignment, Context )
+	return StartPositionGetters[ Alignment ]( Pos, Size, Context )
 end
 
 function Horizontal:GetFillSize( Size )
@@ -37,13 +37,22 @@ function Horizontal:GetMarginSize( Margin )
 	return Margin[ 5 ]
 end
 
-function Horizontal:SetElementPos( Element, X, Y, Margin, LayoutSize )
-	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
-	if CrossAxisAlignment == LayoutAlignment.CENTRE then
-		Y = Y + LayoutSize.y * 0.5 - Element:GetLayoutSize().y * 0.5
-	elseif CrossAxisAlignment == LayoutAlignment.MAX then
-		Y = Y + LayoutSize.y - Element:GetLayoutSize().y
+local CrossAxisAlignmentGetters = {
+	[ LayoutAlignment.MIN ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y
+	end,
+	[ LayoutAlignment.CENTRE ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y + LayoutSize.y * 0.5 - ElementSize.y * 0.5
+	end,
+	[ LayoutAlignment.MAX ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y + LayoutSize.y - ElementSize.y
 	end
+}
+
+function Horizontal:SetElementPos( Element, X, Y, Margin, LayoutSize, ElementSize )
+	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
+
+	X, Y = CrossAxisAlignmentGetters[ CrossAxisAlignment ]( Element, X, Y, LayoutSize, ElementSize )
 
 	local LayoutOffset = Element:GetLayoutOffset()
 	Element:SetLayoutPos( Vector2( X + LayoutOffset.x, Y + Margin[ 2 ] + LayoutOffset.y ) )
