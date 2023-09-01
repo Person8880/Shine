@@ -236,7 +236,12 @@ function ColourPicker:DoClick()
 					Props = {
 						AutoFont = AgencyFBNormal,
 						DebugName = ID.."Label",
-						Margin = Units.Spacing( 0, 0, MaxSliderLabelWidth - Units.Auto() + Units.HighResScaled( 8 ), 0 ),
+						Margin = Units.Spacing(
+							0,
+							0,
+							MaxSliderLabelWidth - Units.Auto.INSTANCE + Units.HighResScaled( 8 ),
+							0
+						),
 						Text = Shine.Locale:GetPhrase( "Core", LabelKey )
 					},
 					OnBuilt = function( self, Label )

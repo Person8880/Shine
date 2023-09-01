@@ -99,8 +99,8 @@ function EmojiAutoComplete:SetEmoji( EmojiEntries )
 			Emoji = self:Add( EmojiAutoCompleteEntry )
 			Emoji:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 			Emoji:SetAutoSize( Units.UnitVector(
-				Units.Integer( Units.Auto() + Units.GUIScaled( 8 ) ),
-				Units.Integer( Units.Percentage( 100 ) - Units.GUIScaled( 8 ) ) )
+				Units.Integer( Units.Auto.INSTANCE + Units.GUIScaled( 8 ) ),
+				Units.Integer( Units.Percentage.ONE_HUNDRED - Units.GUIScaled( 8 ) ) )
 			)
 			self.Emoji[ i ] = Emoji
 			self.Layout:AddElement( Emoji )

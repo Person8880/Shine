@@ -662,8 +662,8 @@ function Plugin:CreateChatbox()
 		local EmojiAutoCompletePanel = SGUI:Create( EmojiAutoComplete, Box )
 		EmojiAutoCompletePanel:SetupFromTable{
 			PositionType = SGUI.PositionType.ABSOLUTE,
-			TopOffset = Units.Percentage( 100 ) - AutoCompleteSize,
-			AutoSize = Units.UnitVector( Units.Percentage( 100 ), AutoCompleteSize ),
+			TopOffset = Units.Percentage.ONE_HUNDRED - AutoCompleteSize,
+			AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, AutoCompleteSize ),
 			IsVisible = false,
 			Padding = Units.Spacing( PaddingSize, 0, PaddingSize, 0 )
 		}
