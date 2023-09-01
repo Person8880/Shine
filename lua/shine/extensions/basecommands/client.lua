@@ -1404,7 +1404,7 @@ function Plugin:ReceivePluginData( Data )
 	self.PluginData[ Data.Name ] = Data
 	Data.IsOfficial = Shine.IsOfficialExtension( Data.Name )
 
-	local Row = self.PluginRows[ Data.Name ]
+	local Row = self.PluginRows and self.PluginRows[ Data.Name ]
 	if Row then
 		Row:SetEnabled( Data.Enabled )
 		Row:SetConfiguredAsEnabled( Data.ConfiguredAsEnabled )
