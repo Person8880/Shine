@@ -244,8 +244,6 @@ function Shine:CloseWebPage()
 
 	self.ActiveWebPage:Destroy()
 	self.ActiveWebPage = nil
-
-	Shine.Timer.Destroy( "WebpageUpdate" )
 end
 
 Hook.Add( "PlayerKeyPress", "WebpageClose", function( Key, Down, Amount )
