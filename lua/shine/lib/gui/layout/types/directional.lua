@@ -11,7 +11,6 @@
 ]]
 
 local Max = math.max
-local Min = math.min
 local Vector2 = Vector2
 local TableNew = require "table.new"
 
