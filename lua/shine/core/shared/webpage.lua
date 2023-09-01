@@ -41,12 +41,6 @@ local AlwaysButtonPos = Vector( 5, -37, 0 )
 local PopupTextPos = Vector( 0, -32, 0 )
 
 local Max = math.max
-local Random = math.random
-local StringExplode = string.Explode
-local StringFormat = string.format
-local StringStartsWith = string.StartsWith
-local StringSub = string.sub
-local TableConcat = table.concat
 
 local function Scale( Value, WidthMult, HeightMult )
 	return Vector( Value.x * WidthMult, Value.y * HeightMult, 0 )
