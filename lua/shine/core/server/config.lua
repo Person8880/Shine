@@ -2,6 +2,8 @@
 	Shine's config system.
 ]]
 
+local JSON = require "shine/lib/json"
+
 local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
 local pairs = pairs
@@ -25,7 +27,7 @@ local DefaultConfig = {
 
 	GetUsersFromWeb = false, -- Sets whether user data should be retrieved from the web.
 	GetUsersWithPOST = false, -- Should we use POST to retrieve users?
-	UserRetrieveArguments = {}, -- What extra arguments should be sent using POST?
+	UserRetrieveArguments = JSON.Object(), -- What extra arguments should be sent using POST?
 	UsersURL = "http://www.yoursite.com/users.json", -- URL to get user data from if the above is true.
 	RefreshUsers = false, -- Auto-refresh users every set amount of time.
 	RefreshInterval = 60, -- How long in seconds between refreshes?
@@ -33,7 +35,7 @@ local DefaultConfig = {
 	WebConfigs = {
 		Enabled = false, -- Should plugins get their configuration files from the web?
 		RequestURL = "", -- Where should we request them from?
-		RequestArguments = {}, -- What additional POST arguments should we send?
+		RequestArguments = JSON.Object(), -- What additional POST arguments should we send?
 		MaxAttempts = 3, -- How many times should we attempt to get the configs before giving up?
 		UpdateMode = 1, -- How should they be updated? 1 = on mapcycle, 2 = timed refresh.
 		UpdateInterval = 1, -- How long in minutes between updates if set to time based?
