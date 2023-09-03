@@ -333,10 +333,25 @@ function Plugin:ParseAdverts()
 					self:Print( "%s[ %d ] has a rich text message with no text content.", true, AdvertList, Index )
 					return false
 				end
-			elseif not IsType( Advert.Message, "string" ) then
-				self:Print( "%s[ %d ] has a missing or non-string message and no rich text message.",
-					true, AdvertList, Index )
-				return false
+
+				if Advert.ParseEmoji ~= nil and not IsType( Advert.ParseEmoji, "boolean" ) then
+					self:Print(
+						"%s[ %d ].ParseEmoji must be a boolean value (was %s).",
+						true, AdvertList, Index, type( Advert.ParseEmoji )
+					)
+					return false
+				end
+			else
+				if not IsType( Advert.Message, "string" ) then
+					self:Print( "%s[ %d ] has a missing or non-string message and no rich text message.",
+						true, AdvertList, Index )
+					return false
+				end
+
+				if Advert.ParseEmoji ~= nil then
+					self:Print( "%s[ %d ] cannot use emoji as it is not a rich text message.", true, AdvertList, Index )
+					return false
+				end
 			end
 
 			if Advert.Team ~= nil then
@@ -797,7 +812,11 @@ function Plugin:DisplayAdvert( Advert, EventData )
 	local Type = Advert.Type
 	if not Type or Type == "chat" then
 		if IsType( Advert.Message, "table" ) then
-			self:NotifyRichText( Targets, ChatAPI.ToRichTextMessage( Advert.Message, WithInterpolation, EventData ) )
+			self:NotifyRichText(
+				Targets,
+				ChatAPI.ToRichTextMessage( Advert.Message, WithInterpolation, EventData ),
+				Advert
+			)
 			return
 		end
 

@@ -225,11 +225,13 @@ function Plugin:AddRichTextMessage( MessageData )
 			Chunk.SourceType = ChatAPI.SourceType[ Source.Type ] or ChatAPI.SourceType.SYSTEM
 			Chunk.SourceID = tostring( Source.ID or "" )
 			Chunk.SuppressSound = not not MessageData.SuppressSound
+			Chunk.ParseEmoji = not not MessageData.ParseEmoji
 		else
 			-- Avoid repeating data to avoid some overhead.
 			Chunk.SourceType = 1
 			Chunk.SourceID = ""
 			Chunk.SuppressSound = false
+			Chunk.ParseEmoji = false
 		end
 
 		Chunk.MessageID = MessageID

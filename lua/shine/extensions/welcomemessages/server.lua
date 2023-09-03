@@ -73,10 +73,14 @@ do
 		Validator:AddFieldRule( { Key..".Prefix", PrintKey..".Prefix" }, Validator.IsAnyType( { "string", "nil" } ) )
 
 		local MessageKey = { Key..".Message", PrintKey..".Message" }
+		local ParseEmojiKey = { Key..".ParseEmoji", PrintKey..".ParseEmoji" }
 		Validator:AddFieldRule( MessageKey, Validator.IsAnyType( { "string", "table" } ) )
 
 		if IsType( Message.Message, "table" ) then
 			Validator:AddFieldRule( MessageKey, Validator.Each( Validator.IsAnyType( { "string", "table" } ) ) )
+			Validator:AddFieldRule( ParseEmojiKey, Validator.IsAnyType( { "boolean", "nil" } ) )
+		else
+			Validator:AddFieldRule( ParseEmojiKey, Validator.IsType( "nil" ) )
 		end
 	end
 
@@ -161,7 +165,7 @@ function Plugin:DisplayMessage( Message )
 	end
 
 	if IsType( Message.Message, "table" ) then
-		self:NotifyRichText( nil, ChatAPI.ToRichTextMessage( Message.Message ) )
+		self:NotifyRichText( nil, ChatAPI.ToRichTextMessage( Message.Message ), Message )
 		return
 	end
 

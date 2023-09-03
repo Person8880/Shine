@@ -22,7 +22,8 @@ Adverts.Config = {
 			Type = "chat",
 			Message = {
 				{ 0, 200, 255 }, "[Info] "
-			}
+			},
+			ParseEmoji = true
 		},
 		RoundStarted = {
 			Type = "chat",
@@ -123,6 +124,19 @@ Adverts.Config = {
 						{ 255, 255, 255 }, "csay doesn't support rich text"
 					},
 					Type = "csay"
+				},
+				{
+					Message = {
+						{ 255, 255, 255 }, "Text"
+					},
+					-- Non-boolean "ParseEmoji" flag.
+					ParseEmoji = "true"
+				},
+				{
+					Message = "Emoji must be used with rich text.",
+					Template = "ChatNotification",
+					-- Not rich text, so this is invalid.
+					ParseEmoji = true
 				},
 				-- No message or rich text message is invalid.
 				{}
@@ -305,7 +319,8 @@ UnitTest:Test( "ParseAdverts parses as expected", function( Assert )
 		},
 		Type = "chat",
 		Template = "RichTextChatNotification",
-		DelayInSeconds = 60
+		DelayInSeconds = 60,
+		ParseEmoji = true
 	}, RichTextAdvert )
 
 	local InGameStream = Adverts.AdvertStreams[ 2 ]

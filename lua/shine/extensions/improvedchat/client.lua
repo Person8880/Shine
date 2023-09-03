@@ -1097,6 +1097,7 @@ do
 		Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
 
 		if self.dt.ParseEmojiInChat then
+			-- Parse emoji only in the actual message, not the player name or tags.
 			local StartIndex = #Contents
 			ParseEmojiInChatMessage( Contents, Data.Message )
 
@@ -1118,29 +1119,43 @@ do
 			Message = Contents
 		} )
 	end
-end
 
-function Plugin:AddRichTextMessage( MessageData )
-	if not self.GUIChat then
-		-- This shouldn't happen, but fail gracefully if it does.
-		self.Logger:Warn( "GUIChat not available, unable to display chat message." )
-		return
-	end
+	local getmetatable = getmetatable
 
-	if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
-		local Player = Client.GetLocalPlayer()
-		if Player and not MessageData.SuppressSound and Player.GetChatSound then
-			StartSoundEffect( Player:GetChatSound() )
+	function Plugin:AddRichTextMessage( MessageData )
+		if not self.GUIChat then
+			-- This shouldn't happen, but fail gracefully if it does.
+			self.Logger:Warn( "GUIChat not available, unable to display chat message." )
+			return
 		end
 
-		Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
+		if MessageData.ParseEmoji then
+			-- Note: this won't be applied to chat messages as those will have already parsed emoji.
+			local Contents = MessageData.Message
+			local ParsedContents = {}
+			for i = 1, #Contents do
+				local Element = Contents[ i ]
+				if getmetatable( Element ) == TextElement then
+					ParseEmojiInChatMessage( ParsedContents, Element.Value )
+				else
+					ParsedContents[ #ParsedContents + 1 ] = Element
+				end
+			end
+			MessageData.Message = ParsedContents
+		end
+
+		if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
+			local Player = Client.GetLocalPlayer()
+			if Player and not MessageData.SuppressSound and Player.GetChatSound then
+				StartSoundEffect( Player:GetChatSound() )
+			end
+
+			Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
+		end
+
+		return true
 	end
 
-	return true
-end
-
-do
-	local getmetatable = getmetatable
 	local StringMatch = string.match
 	local TableAdd = table.Add
 	local TableConcat = table.concat
@@ -1221,6 +1236,7 @@ do
 		}
 
 		Holder.SuppressSound = Data.SuppressSound
+		Holder.ParseEmoji = Data.ParseEmoji
 	end
 
 	for i = 1, Plugin.MAX_CHUNKS_PER_MESSAGE do
@@ -1267,7 +1283,8 @@ do
 			self:AddRichTextMessage( {
 				Source = MessageChunks.Source,
 				SuppressSound = MessageChunks.SuppressSound,
-				Message = FinalMessage
+				Message = FinalMessage,
+				ParseEmoji = MessageChunks.ParseEmoji
 			} )
 		end
 	end

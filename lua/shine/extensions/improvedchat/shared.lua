@@ -115,7 +115,8 @@ function Plugin:SetupDataTable()
 			SuppressSound = "boolean",
 			MessageID = "integer",
 			ChunkIndex = "integer",
-			NumChunks = "integer"
+			NumChunks = "integer",
+			ParseEmoji = "boolean"
 		}
 		for j = 1, i do
 			-- If colour is negative, the value is skipped. Otherwise it's turned into 3 bytes of colour.
