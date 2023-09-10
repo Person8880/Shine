@@ -414,6 +414,10 @@ do
 		return TableConcat( Output )
 	end
 
+	function ValidationContext:PrintErrorAtPath( ErrorMessage )
+		return Print( ErrorMessage, self:GetCurrentPath() )
+	end
+
 	local Validator = {}
 	Validator.__index = Validator
 
@@ -552,18 +556,18 @@ do
 			Check = function( Value, Context )
 				if not IsType( Value, "table" ) then return true end
 
-				local NeedsFix, CanonicalValue = Context:WithField( Name, Predicate, Value[ Name ], Context )
+				local NeedsFix, CanonicalValue, Data = Context:WithField( Name, Predicate, Value[ Name ], Context )
 				if not NeedsFix and CanonicalValue ~= nil then
 					local Copy = TableShallowCopy( Value )
 					Copy[ Name ] = CanonicalValue
 					CanonicalValue = Copy
 				end
 
-				return NeedsFix, CanonicalValue
+				return NeedsFix, CanonicalValue, Data
 			end,
-			Fix = function( Value, Context )
+			Fix = function( Value, Context, Data )
 				if not IsType( Value, "table" ) then
-					local Fixed = Context:WithField( Name, FixFunc, nil, Context )
+					local Fixed = Context:WithField( Name, FixFunc, nil, Context, Data )
 					if Fixed ~= nil then
 						return {
 							[ Name ] = Fixed
@@ -572,7 +576,7 @@ do
 					return nil
 				end
 
-				local FixedValue = Context:WithField( Name, FixFunc, Value[ Name ], Context )
+				local FixedValue = Context:WithField( Name, FixFunc, Value[ Name ], Context, Data )
 				if FixedValue == nil and DeleteIfFieldInvalid then
 					return nil
 				end
@@ -581,7 +585,7 @@ do
 
 				return Value
 			end,
-			Message = function()
+			Message = MessageFunc and function()
 				return StringFormat( "%s on field %s", MessageFunc(), Name )
 			end
 		}
@@ -614,40 +618,44 @@ do
 		return {
 			Check = function( Value, Context )
 				local Passes = true
-				for i = 1, #Value do
+				local FailedIndices = { [ 0 ] = #Value }
+
+				for i = 1, FailedIndices[ 0 ] do
 					Context:PushField( i )
 
-					local NeedsFix, CanonicalValue = Predicate( Value[ i ], Context )
+					local NeedsFix, CanonicalValue, Data = Predicate( Value[ i ], Context )
 					if NeedsFix then
-						Print( Context.MessagePrefix..MessageFunc(), Context:GetCurrentPath() )
+						if MessageFunc then
+							Context:PrintErrorAtPath( Context.MessagePrefix..MessageFunc() )
+						end
 						Passes = false
+						if Data == nil then Data = true end
+						FailedIndices[ i ] = Data
 					elseif CanonicalValue ~= nil then
 						Value[ i ] = CanonicalValue
 					end
 
 					Context:PopField()
 				end
-				return not Passes
-			end,
-			Fix = function( Value, Context )
-				for i = #Value, 1, -1 do
-					Context:PushField( i )
 
-					if Predicate( Value[ i ], Context ) then
-						local Fixed = FixFunc( Value[ i ], Context )
+				return not Passes, nil, FailedIndices
+			end,
+			Fix = function( Value, Context, FailedIndices )
+				for i = FailedIndices[ 0 ], 1, -1 do
+					if FailedIndices[ i ] ~= nil then
+						Context:PushField( i )
+
+						local Fixed = FixFunc( Value[ i ], Context, FailedIndices[ i ] )
 						if Fixed ~= nil then
 							Value[ i ] = Fixed
 						else
 							TableRemove( Value, i )
 						end
-					end
 
-					Context:PopField()
+						Context:PopField()
+					end
 				end
 				return Value
-			end,
-			Message = function()
-				return "Elements of "..MessageFunc()
 			end
 		}
 	end
@@ -662,14 +670,19 @@ do
 		return {
 			Check = function( TableValue, Context )
 				local Passes = true
+				local FailedKeys = {}
 
 				for Key, Value in pairs( TableValue ) do
 					Context:PushField( Key )
 
-					local NeedsFix, CanonicalValue = Predicate( Value, Context )
+					local NeedsFix, CanonicalValue, Data = Predicate( Value, Context )
 					if NeedsFix then
-						Print( Context.MessagePrefix..MessageFunc(), Context:GetCurrentPath() )
+						if MessageFunc then
+							Context:PrintErrorAtPath( Context.MessagePrefix..MessageFunc() )
+						end
 						Passes = false
+						if Data == nil then Data = true end
+						FailedKeys[ Key ] = Data
 					elseif CanonicalValue ~= nil then
 						TableValue[ Key ] = CanonicalValue
 					end
@@ -677,28 +690,23 @@ do
 					Context:PopField()
 				end
 
-				return not Passes
+				return not Passes, nil, FailedKeys
 			end,
-			Fix = function( TableValue, Context )
-				for Key, Value in pairs( TableValue ) do
+			Fix = function( TableValue, Context, FailedKeys )
+				for Key, Data in pairs( FailedKeys ) do
 					Context:PushField( Key )
 
-					if Predicate( Value, Context ) then
-						local Fixed = FixFunc( Value, Context )
-						if Fixed ~= nil then
-							TableValue[ Key ] = Fixed
-						else
-							TableValue[ Key ] = nil
-						end
+					local Fixed = FixFunc( TableValue[ Key ], Context, Data )
+					if Fixed ~= nil then
+						TableValue[ Key ] = Fixed
+					else
+						TableValue[ Key ] = nil
 					end
 
 					Context:PopField()
 				end
 
 				return TableValue
-			end,
-			Message = function()
-				return "Elements of "..MessageFunc()
 			end
 		}
 	end
@@ -880,13 +888,13 @@ do
 
 					local Path = StringExplode( TableField, ".", true )
 					local Value = TableGetField( Config, Path )
-					local NeedsFix, CanonicalValue = CheckPredicate( Value, Context )
+					local NeedsFix, CanonicalValue, Data = CheckPredicate( Value, Context )
 					if NeedsFix then
 						if MessageSupplier then
 							Print( self.MessagePrefix..MessageSupplier(), PrintField )
 						end
 
-						TableSetField( Config, Path, FixFunction( Value, Context ) )
+						TableSetField( Config, Path, FixFunction( Value, Context, Data ) )
 
 						Context:PopField()
 
