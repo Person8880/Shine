@@ -4,7 +4,32 @@
 
 local Trace = debug.traceback()
 
-if Trace:find( "Main.lua" ) or Trace:find( "Loading.lua" ) then return end
+if Trace:find( "Loading.lua" ) then return end
+
+if Trace:find( "Main.lua" ) then
+	-- In the main menu, fix the hidden flag on the "map" command.
+	local Fixed = false
+	local function FixHostGame()
+		Event.RemoveHook( "UpdateClient", FixHostGame )
+
+		if type( HostGame ) == "function" and not Fixed then
+			Fixed = true
+
+			local OldHostGame = HostGame
+			function HostGame( MapName, Hidden, ... )
+				if Hidden == "hidden" then
+					Shared.Message( "Starting local server in hidden mode..." )
+					Hidden = true
+				end
+				return OldHostGame( MapName, Hidden, ... )
+			end
+		end
+	end
+
+	Event.Hook( "UpdateClient", FixHostGame )
+
+	return
+end
 
 do
 	local loadfile = loadfile
