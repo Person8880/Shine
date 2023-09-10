@@ -38,10 +38,16 @@ UnitTest:Test( "EnforceName returns nothing when no name is enforced", function(
 	Assert.Nil( "Name should be enforced", Name )
 end )
 
+local function SetFilters( Filters )
+	Plugin.Config.Filters = Filters
+	Plugin.Filters = Plugin:CompileFilters()
+end
+
 Plugin.Config.FilterAction = Plugin.FilterActionType.RENAME
-Plugin.Config.Filters = {
+
+SetFilters( {
 	{ Pattern = "BannedN[a]+me" }
-}
+} )
 
 USER_ID = 0
 UnitTest:Test( "CheckPlayerName returns nothing for a bot", function( Assert )
@@ -60,18 +66,47 @@ UnitTest:Test( "CheckPlayerName returns nothing when pattern filter does not mat
 	Assert.Nil( "Name should be accepted", Name )
 end )
 
-Plugin.Config.Filters = {
-	{ Pattern = "BannedN[a]+me", Excluded = USER_ID }
-}
+SetFilters( {
+	{ Pattern = "NotBan[" }
+} )
 
-UnitTest:Test( "CheckPlayerName returns nothing when player matches the filter exclusion", function( Assert )
+UnitTest:Test( "CheckPlayerName returns nothing when pattern filter is invalid", function( Assert )
+	local Name = Plugin:CheckPlayerName( MockPlayer, "NotBanned", "NSPlayer" )
+	Assert.Nil( "Name should be accepted", Name )
+	Assert.True( "Should have marked the filter as invalid", Plugin.InvalidFilters[ Plugin.Filters[ 1 ] ] )
+end )
+
+SetFilters( {
+	{ Pattern = "BannedN[a]+me", Excluded = USER_ID }
+} )
+
+UnitTest:Test( "CheckPlayerName returns nothing when player matches the filter exclusion for a single user ID", function( Assert )
 	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedNaaaame", "NSPlayer" )
 	Assert.Nil( "Name should be accepted", Name )
 end )
 
-Plugin.Config.Filters = {
+SetFilters( {
+	{ Pattern = "BannedN[a]+me", Excluded = { 123, "456", USER_ID } }
+} )
+
+UnitTest:Test( "CheckPlayerName returns nothing when player matches the filter exclusion for a list of user IDs", function( Assert )
+	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedNaaaame", "NSPlayer" )
+	Assert.Nil( "Name should be accepted", Name )
+end )
+
+SetFilters( {
+	{ Pattern = "BannedN[a]+me", Excluded = { [ "123" ] = true, [ "456" ] = true, [ tostring( USER_ID ) ] = true } }
+} )
+
+UnitTest:Test( "CheckPlayerName returns nothing when player matches the filter exclusion for a lookup of user IDs", function( Assert )
+	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedNaaaame", "NSPlayer" )
+	Assert.Nil( "Name should be accepted", Name )
+end )
+
+SetFilters( {
 	{ Pattern = "BannedN[a]+me", PlainText = true }
-}
+} )
+
 UnitTest:Test( "CheckPlayerName returns new name when plain filter matches", function( Assert )
 	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedN[a]+me", "NSPlayer" )
 	Assert.Equals( "Name should be rejected", "NSPlayer654321", Name )
