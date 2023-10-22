@@ -288,12 +288,8 @@ do
 
 	EmojiRepository.TotalEmojiCount = EmojiByName[ 0 ]
 
-	-- Would use math.log( x, 10 ), but that has floating point errors which break at certain values
-	-- (e.g. math.log( 10, 10 ) is actually 0.999999...).
-	local ShortNamePaddingSize = 0
-	while 10 ^ ShortNamePaddingSize <= EmojiByName[ 0 ] do
-		ShortNamePaddingSize = ShortNamePaddingSize + 1
-	end
+	-- Note: math.log10 is more precise than math.log( x, 10 ).
+	local ShortNamePaddingSize = math.floor( math.log10( EmojiByName[ 0 ] ) ) + 1
 
 	-- For each emoji, assign a short name of the form "e{Index}", e.g. "e100" or "e010". This is left-padded to ensure
 	-- every emoji takes up the exact same number of characters. These short names can then be used internally when
