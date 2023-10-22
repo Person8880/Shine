@@ -101,6 +101,11 @@ end
 	The only time you need to override it is if you have more than a background object.
 ]]
 function ControlMeta:Cleanup()
+	if SGUI.IsValid( self.Tooltip ) then
+		self.Tooltip:Destroy()
+		self.Tooltip = nil
+	end
+
 	if self.Parent then return end
 
 	if self.GUIItems then
@@ -622,6 +627,10 @@ end
 
 function ControlMeta:SetLayer( Layer )
 	self.Background:SetLayer( Layer )
+end
+
+function ControlMeta:GetLayer()
+	return self.Background:GetLayer()
 end
 
 local function IsDescendantOf( Child, Ancestor )

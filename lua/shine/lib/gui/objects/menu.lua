@@ -217,6 +217,26 @@ function Menu:Resize()
 	self:SetSize( Vector2( MenuWidth, MenuHeight ) )
 end
 
+function Menu:FitToScreen()
+	local Pos = self:GetPos()
+	local Size = self:GetSize()
+	local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
+
+	if Pos.x + Size.x > ScreenWidth then
+		Pos.x = ScreenWidth - Size.x
+	elseif Pos.x < 0 then
+		Pos.x = 0
+	end
+
+	if Pos.y + Size.y > ScreenHeight then
+		Pos.y = ScreenHeight - Size.y
+	elseif Pos.y < 0 then
+		Pos.y = 0
+	end
+
+	return self:SetPos( Pos )
+end
+
 ------------------- Event calling -------------------
 function Menu:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end

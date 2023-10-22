@@ -501,7 +501,7 @@ do
 		local Button = SGUI:Create( "Button" )
 		Button:SetText( Data.Name )
 		Button.DoClick = function( Button )
-			Data.DoClick( Button, PlayerList:GetSelectedRow() )
+			return Data.DoClick( Button, PlayerList:GetSelectedRow() )
 		end
 		Button:SetTooltip( Data.Tooltip )
 		Button.MultiPlayer = Data.MultiPlayer
@@ -700,13 +700,16 @@ do
 		end
 	end
 
-	local function GetArgFromRow( Row )
-		local SteamID = Row:GetColumnText( 2 )
+	local function GetArgFromPlayer( SteamID, Name )
 		if SteamID == "0" then
 			-- It's a bot, so we need to use their name to target them.
-			return StringGSub( Row:GetColumnText( 1 ), "\"", "\\\"" )
+			return StringGSub( Name, "\"", "\\\"" )
 		end
 		return SteamID
+	end
+
+	local function GetArgFromRow( Row )
+		return GetArgFromPlayer( Row:GetColumnText( 2 ), Row:GetColumnText( 1 ) )
 	end
 
 	local function GetArgsFromRows( Rows, MultiPlayer )
@@ -738,7 +741,7 @@ do
 					return
 				end
 
-				OldDoClick( Button, Shine.Stream.Of( Rows ):Map( function( Row )
+				return OldDoClick( Button, Shine.Stream.Of( Rows ):Map( function( Row )
 					return Row:GetColumnText( 2 )
 				end ):AsTable() )
 			end
@@ -746,6 +749,7 @@ do
 			local Data = DoClick
 
 			local Menu
+			local RemovedFrameNumber
 			local function CleanupMenu()
 				self:DontDestroyOnClose( Menu )
 				Menu:Destroy()
@@ -762,25 +766,43 @@ do
 					return
 				end
 
+				if Button:GetLastMouseDownFrameNumber() == RemovedFrameNumber then return end
+
 				if not MultiPlayer and #Rows > 1 then
 					return
 				end
 
 				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
-				Menu = Button:AddMenu( Vector2(
-					HighResScaled( Data.Width or 144 ):GetValue(),
-					HighResScaled( Data.ButtonHeight or 32 ):GetValue()
+				local MenuOptions = Data
+				if IsType( Data.BuildMenuOptions, "function" ) then
+					MenuOptions = Data.BuildMenuOptions( Rows, {
+						GetArgFromPlayer = GetArgFromPlayer
+					} )
+				end
+
+				local NumOptions = #MenuOptions
+				if NumOptions == 0 then return false end
+
+				Menu = Button:AddMenu( UnitVector(
+					HighResScaled( Data.Width or 144 ),
+					HighResScaled( Data.ButtonHeight or 32 )
 				) )
 				Menu:CallOnRemove( function()
 					Menu = nil
+					RemovedFrameNumber = SGUI.FrameNumber()
 				end )
+
+				if IsType( Data.MaxVisibleButtons, "number" ) then
+					Menu:SetMaxVisibleButtons( Data.MaxVisibleButtons )
+				end
+
 				self:DestroyOnClose( Menu )
 
 				local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
-				for i = 1, #Data, 2 do
-					local Option = Data[ i ]
-					local Arg = Data[ i + 1 ]
+				for i = 1, NumOptions, 2 do
+					local Option = MenuOptions[ i ]
+					local Arg = MenuOptions[ i + 1 ]
 
 					if IsType( Arg, "string" ) then
 						Menu:AddButton( Option, function()
@@ -801,6 +823,8 @@ do
 						Arg.Setup( Menu, Command, Args, CleanupMenu )
 					end
 				end
+
+				Menu:FitToScreen()
 			end
 		end
 

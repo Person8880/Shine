@@ -1,8 +1,13 @@
 {
+	"CATEGORY": "Fun Commands",
 	"GOTO": "Go To",
 	"GOTO_TIP": "Teleports you to the selected player.",
 	"BRING": "Bring",
 	"BRING_TIP": "Brings the selected player to you.",
+	"SEND_TO": "Send To Player",
+	"SEND_TO_TIP": "Sends the selected player to another player.",
+	"SEND_TO_LOCATION": "Send To Location",
+	"SEND_TO_LOCATION_TIP": "Sends the selected player to a location on the map.",
 	"SLAY": "Slay",
 	"SLAY_TIP": "Kills the selected player.",
 	"DARWIN_MODE": "Darwin Mode",
