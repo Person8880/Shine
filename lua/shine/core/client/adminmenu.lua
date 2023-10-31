@@ -793,6 +793,10 @@ do
 					RemovedFrameNumber = SGUI.FrameNumber()
 				end )
 
+				if IsType( Data.HorizontalMenuPadding, "number" ) then
+					Menu:SetButtonWidthPadding( HighResScaled( Data.HorizontalMenuPadding ) )
+				end
+
 				if IsType( Data.MaxVisibleButtons, "number" ) then
 					Menu:SetMaxVisibleButtons( Data.MaxVisibleButtons )
 				end

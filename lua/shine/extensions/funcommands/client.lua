@@ -117,7 +117,8 @@ function Plugin:SetupAdminMenuCommands()
 
 			return Options
 		end,
-		MaxVisibleButtons = 8
+		MaxVisibleButtons = 8,
+		HorizontalMenuPadding = 8
 	}, self:GetPhrase( "SEND_TO_TIP" ) )
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "SEND_TO_LOCATION" ), "sh_sendto_location", false, {
 		BuildMenuOptions = function()
@@ -132,7 +133,8 @@ function Plugin:SetupAdminMenuCommands()
 			end
 			return Options
 		end,
-		MaxVisibleButtons = 8
+		MaxVisibleButtons = 8,
+		HorizontalMenuPadding = 8
 	}, self:GetPhrase( "SEND_TO_LOCATION_TIP" ) )
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "SLAY" ), "sh_slay", true, nil,
 		self:GetPhrase( "SLAY_TIP" ) )
