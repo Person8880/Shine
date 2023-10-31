@@ -464,6 +464,24 @@ do
 			-- No need to copy here, matches is a new table every time.
 			Matches = Shine.Stream( Matches ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
 		end
+
+		-- Bias towards suggesting more frequently used emoji first, but retain emoji definition order otherwise.
+		local FrequentlyUsedEmoji = EmojiRepository.GetFrequentlyUsedEmoji()
+		Matches = Shine.Stream( Matches ):StableSort( function( Left, Right )
+			local LeftFrequency = FrequentlyUsedEmoji:Get( Left.Name ) or 0
+			local RightFrequency = FrequentlyUsedEmoji:Get( Right.Name ) or 0
+
+			if LeftFrequency > RightFrequency then
+				return -1
+			end
+
+			if LeftFrequency < RightFrequency then
+				return 1
+			end
+
+			return 0
+		end ):AsTable()
+
 		return Matches
 	end
 

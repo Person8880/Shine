@@ -28,6 +28,7 @@ local StringFind = string.find
 local StringFormat = string.format
 local StringGSub = string.gsub
 local StringMatch = string.match
+local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
@@ -640,9 +641,11 @@ function Plugin:CreateChatbox()
 	local function InsertEmojiFromCompletion( EmojiName )
 		local CaretPos = self.TextEntry:GetCaretPos()
 		local TextBehindCaret = self.TextEntry:GetTextBetween( 1, CaretPos )
+
 		local EmojiMatch = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
-		local RemainingChars = #EmojiName - #EmojiMatch
-		local TextToInsert = StringSub( EmojiName, #EmojiName - RemainingChars + 1 )..":"
+		if not EmojiMatch or not StringStartsWith( EmojiName, EmojiMatch ) then return end
+
+		local TextToInsert = StringSub( EmojiName, #EmojiMatch + 1 )..":"
 
 		-- Avoid inserting a second space if there's one in front of the caret already.
 		local TextAfterCaret = self.TextEntry:GetTextBetween( CaretPos + 1, CaretPos + 1 )

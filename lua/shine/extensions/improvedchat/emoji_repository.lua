@@ -359,6 +359,9 @@ if Client then
 
 	local function EmojiExists( Key ) return EmojiByName[ Key ] ~= nil end
 
+	--[[
+		Returns a map of emoji name -> usage counter, indicating the most frequently used emoji by the local player.
+	]]
 	function EmojiRepository.GetFrequentlyUsedEmoji()
 		if SortRequired then
 			SortRequired = false

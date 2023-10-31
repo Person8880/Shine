@@ -54,6 +54,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:This text is smaller than the max size.",
@@ -88,6 +89,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLUGIN,
 					SourceID = "test",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:"..string.rep( "é", 126 )
@@ -116,6 +118,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLUGIN,
 					SourceID = "test",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:"..string.rep( "é", 125 ).."e"
@@ -144,6 +147,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLUGIN,
 					SourceID = "test",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:"..string.rep( "é", 126 ),
@@ -176,6 +180,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLAYER,
 					SourceID = "123",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					-- Should split once when text overflows but the overflow is not larger than the max.
 					Colour1 = 0xFFFFFF,
@@ -205,6 +210,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					-- Should split n times to ensure no overflow.
 					Colour1 = 0xFFFFFF,
@@ -238,6 +244,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					-- Should correctly handle the case where text is exactly the max length.
 					Colour1 = 0xFFFFFF,
@@ -266,7 +273,8 @@ local RichTextMessages = {
 				"This text is light blue.",
 				Colour( 0, 0, 0 ),
 				"This text is black."
-			}
+			},
+			ParseEmoji = true
 		},
 		ExpectedMessages = {
 			{
@@ -278,6 +286,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = true,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:This text is white.",
@@ -307,6 +316,7 @@ local RichTextMessages = {
 					SourceType = 1,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0,
 					Value1 = "t:This text is black."

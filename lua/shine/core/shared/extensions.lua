@@ -994,7 +994,7 @@ Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
 local OfficialExtensions
 
 --[[
-	Returns a set of all plugins that are officialy bundled by inspecting the official mod.
+	Returns whether the plugin with the given name is part of the official mod.
 
 	This is used in the plugin list UI to indicate whether a plugin is official or not, it's not used as any form of
 	trusted status or any other logic.
