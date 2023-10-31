@@ -108,7 +108,9 @@ function Plugin:CreateCommands()
 			local Locations = GetLocations()
 			for i = 1, #Locations do
 				local Name = Locations[ i ]:GetName()
-				LocationNames:Add( StringLower( Name ), Name )
+				if self.IsValidDestinationLocation( Locations[ i ] ) then
+					LocationNames:Add( StringLower( Name ), Name )
+				end
 			end
 		end
 		return LocationNames

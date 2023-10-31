@@ -75,6 +75,7 @@ function Plugin:SetupAdminMenuCommands()
 	local LocationNames
 	local function FindLocations()
 		return Shine.Stream( EntityListToTable( Shared.GetEntitiesWithClassname( "Location" ) ) )
+			:Filter( self.IsValidDestinationLocation )
 			:Map( function( Location ) return Location:GetName() end )
 			:Distinct()
 			:Sort()

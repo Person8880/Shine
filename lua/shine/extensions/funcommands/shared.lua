@@ -2,6 +2,8 @@
 	Fun commands shared.
 ]]
 
+local Max = math.max
+
 local Plugin = Shine.Plugin( ... )
 
 Plugin.TeleportMessageKeys = {
@@ -45,6 +47,13 @@ function Plugin:SetupDataTable()
 			"TELEPORTED_SENT_TO"
 		}
 	} )
+end
+
+function Plugin.IsValidDestinationLocation( LocationEntity )
+	-- Ignore tiny location trigger bounds that are used as a hack to display text on the minimap, or to hide secret
+	-- areas of the map.
+	local Extents = LocationEntity.scale * 0.2395
+	return Max( Extents.x, Extents.y, Extents.z ) > 1
 end
 
 return Plugin
