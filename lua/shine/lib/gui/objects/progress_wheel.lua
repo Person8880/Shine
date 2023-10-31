@@ -262,6 +262,17 @@ function ProgressWheel:SetAnimateLoading( AnimateLoading )
 	self:EaseValue( self.Background, self.VisibleFraction, ExpandedSize, 0, SpinDuration, Collapse, FractionEaser )
 end
 
+-- Enable this for a generic loading spinner where progress is not known.
+function ProgressWheel:SetIndeterminate( Indeterminate )
+	if Indeterminate then
+		self:SetAnimateLoading( true )
+		self:SetSpinRate( -math.pi * 2 )
+	else
+		self:SetAnimateLoading( false )
+		self:SetSpinRate( 0 )
+	end
+end
+
 function ProgressWheel:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
@@ -269,7 +280,7 @@ function ProgressWheel:Think( DeltaTime )
 	self:CallOnChildren( "Think", DeltaTime )
 
 	local SpinRate = self:GetSpinRate()
-	if SpinRate and SpinRate ~= 0 then
+	if SpinRate ~= 0 then
 		self:SetAngle( self:GetAngle() + DeltaTime * SpinRate )
 	end
 end

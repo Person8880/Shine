@@ -199,8 +199,7 @@ function Shine:OpenWebpage( URL, TitleText )
 		Anchor = "CentreMiddle",
 		HotSpot = "CentreMiddle",
 		Size = Vector2( WindowWidth * 0.1, WindowWidth * 0.1 ),
-		AnimateLoading = true,
-		SpinRate = -math.pi * 2
+		Indeterminate = true
 	}
 
 	local BarPadding = Units.HighResScaled( 5 ):GetValue()

@@ -19,13 +19,12 @@ local HeaderVariations = {
 	}
 }
 local ProgressWheelBaseParams = {
-	AnimateLoading = true,
+	Indeterminate = true,
 	WheelTexture = {
 		Texture = "ui/shine/wheel.tga",
 		W = 128,
 		H = 128
-	},
-	SpinRate = -math.pi * 2
+	}
 }
 
 return {
