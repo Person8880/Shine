@@ -239,7 +239,6 @@ function List:PerformLayout()
 	local Size = self:GetSize()
 
 	self.ScrollPos = Vector2( 0, self.HeaderSize )
-
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
 
 	if self.RowCount > self.MaxRows then
@@ -252,8 +251,8 @@ function List:PerformLayout()
 		end
 	elseif self.Scrollbar then
 		self.Scrollbar:Destroy()
-
 		self.Scrollbar = nil
+		self.ScrollParentPos = nil
 		self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 	end
 
@@ -378,6 +377,16 @@ function List:SetScrollbarWidth( ScrollbarWidth )
 	end
 end
 
+local function OnSmoothScrollUpdate( self )
+	-- Ensure children perform their initial/updated layout as scrolling occurs.
+	self:CallOnChildren( "InvalidateCroppingState" )
+end
+
+local function OnScrollChanged( self )
+	self:InvalidateMouseState( true )
+	return OnSmoothScrollUpdate( self )
+end
+
 --[[
 	Adds a scrollbar and sets it up to scroll the rows.
 ]]
@@ -390,23 +399,30 @@ function List:AddScrollbar()
 	Scrollbar._CallEventsManually = true
 
 	self.Scrollbar = Scrollbar
+	self.ScrollParentPos = Vector2( 0, 0 )
+end
 
-	function self:OnScrollChange( Pos, MaxPos, Smoothed )
-		local Fraction = Pos / MaxPos
+function List:OnScrollChange( Pos, MaxPos, Smoothed )
+	local Fraction = Pos / MaxPos
+	local RowDiff = self.RowCount - self.MaxRows
 
-		local RowDiff = self.RowCount - self.MaxRows
+	self.ScrollParentPos.y = -RowDiff * self.LineSize * Fraction
 
-		if self.ScrollParentPos then
-			self.ScrollParentPos.y = -RowDiff * self.LineSize * Fraction
-		else
-			self.ScrollParentPos = Vector2( 0, -RowDiff * self.LineSize * Fraction )
-		end
-
-		if Smoothed then
-			self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.3, nil, math.EaseOut, 3 )
-		else
-			self.ScrollParent:SetPosition( self.ScrollParentPos )
-		end
+	if Smoothed then
+		local EasingData = self:MoveTo(
+			self.ScrollParent,
+			nil,
+			self.ScrollParentPos,
+			0,
+			0.3,
+			OnScrollChanged,
+			math.EaseOut,
+			3
+		)
+		EasingData.OnUpdate = OnSmoothScrollUpdate
+	else
+		self.ScrollParent:SetPosition( self.ScrollParentPos )
+		OnScrollChanged( self )
 	end
 end
 

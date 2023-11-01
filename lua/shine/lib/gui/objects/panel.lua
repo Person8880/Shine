@@ -469,14 +469,14 @@ function Panel:OnRemoveScrollbar()
 	self.Layout:SetMargin( nil )
 end
 
-local function OnScrollChanged( self )
-	self:InvalidateMouseState( true )
-	self:CallOnChildren( "InvalidateCroppingState" )
-end
-
 local function OnSmoothScrollUpdate( self )
 	-- Ensure children perform their initial/updated layout as scrolling occurs.
 	self:CallOnChildren( "InvalidateCroppingState" )
+end
+
+local function OnScrollChanged( self )
+	self:InvalidateMouseState( true )
+	return OnSmoothScrollUpdate( self )
 end
 
 function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
