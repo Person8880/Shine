@@ -326,7 +326,9 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access, Predicted )
 		return Register
 	end
 
-	Shared.RegisterNetworkMessage( Name, Values )
+	if not Predict then
+		Shared.RegisterNetworkMessage( Name, Values )
+	end
 
 	local DT = {
 		__Name = Name,
@@ -388,18 +390,22 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access, Predicted )
 			Data[ Key ] = Defaults[ Key ]
 		end
 
-		local ID = GetFieldNetworkMessageName( Name, Key )
+		if not Predict then
+			local ID = GetFieldNetworkMessageName( Name, Key )
 
-		Shared.RegisterNetworkMessage( ID, { [ Key ] = Type } )
+			Shared.RegisterNetworkMessage( ID, { [ Key ] = Type } )
 
-		Shine.HookNetworkMessage( ID, function( Data )
-			return DT:ProcessPartial( Key, Data )
-		end )
+			Shine.HookNetworkMessage( ID, function( Data )
+				return DT:ProcessPartial( Key, Data )
+			end )
+		end
 	end
 
-	Shine.HookNetworkMessage( Name, function( Data )
-		return DT:ProcessComplete( Data )
-	end )
+	if not Predict then
+		Shine.HookNetworkMessage( Name, function( Data )
+			return DT:ProcessComplete( Data )
+		end )
+	end
 
 	Registered[ Name ] = DT
 
