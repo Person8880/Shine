@@ -2,6 +2,8 @@
 	"CLIENT_CONFIG_TAB": "Chat",
 	"ANIMATE_MESSAGES_DESCRIPTION": "Animate messages.",
 	"ANIMATE_MESSAGES_TOOLTIP": "Sets whether to move and fade messages into view.",
+	"PLAY_CHAT_SOUND_DESCRIPTION": "Play message sounds.",
+	"PLAY_CHAT_SOUND_TOOLTIP": "Sets whether to play a sound when a new chat message is received.",
 	"BACKGROUND_OPACITY_DESCRIPTION": "Message background opacity (%):",
 	"TEXT_SHADOW_OPACITY_DESCRIPTION": "Text shadow opacity (%):",
 	"MAX_VISIBLE_MESSAGES_DESCRIPTION": "Max messages before fading out:",
