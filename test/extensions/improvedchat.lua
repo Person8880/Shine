@@ -6,6 +6,8 @@ local UnitTest = Shine.UnitTest
 local Plugin = UnitTest:LoadExtension( "improvedchat" )
 if not Plugin then return end
 
+local StringFormat = string.format
+
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
@@ -52,6 +54,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:This text is smaller than the max size.",
@@ -86,6 +89,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLUGIN,
 					SourceID = "test",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:"..string.rep( "é", 126 )
@@ -114,6 +118,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLUGIN,
 					SourceID = "test",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:"..string.rep( "é", 125 ).."e"
@@ -142,6 +147,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLUGIN,
 					SourceID = "test",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:"..string.rep( "é", 126 ),
@@ -174,6 +180,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.PLAYER,
 					SourceID = "123",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					-- Should split once when text overflows but the overflow is not larger than the max.
 					Colour1 = 0xFFFFFF,
@@ -203,6 +210,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					-- Should split n times to ensure no overflow.
 					Colour1 = 0xFFFFFF,
@@ -236,6 +244,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					-- Should correctly handle the case where text is exactly the max length.
 					Colour1 = 0xFFFFFF,
@@ -264,7 +273,8 @@ local RichTextMessages = {
 				"This text is light blue.",
 				Colour( 0, 0, 0 ),
 				"This text is black."
-			}
+			},
+			ParseEmoji = true
 		},
 		ExpectedMessages = {
 			{
@@ -276,6 +286,7 @@ local RichTextMessages = {
 					SourceType = ChatAPI.SourceType.SYSTEM,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = true,
 
 					Colour1 = 0xFFFFFF,
 					Value1 = "t:This text is white.",
@@ -305,6 +316,7 @@ local RichTextMessages = {
 					SourceType = 1,
 					SourceID = "",
 					SuppressSound = false,
+					ParseEmoji = false,
 
 					Colour1 = 0,
 					Value1 = "t:This text is black."
@@ -427,4 +439,110 @@ UnitTest:Test( "SetChatTag", function( Assert )
 			}
 		}
 	}, SentNetworkMessages )
+end )
+
+local EmojiRepository = require "shine/extensions/improvedchat/emoji_repository"
+
+UnitTest:ResetState()
+UnitTest:Before( function()
+	Shine.UserData.Groups.EmojiTestGroup = {
+		AllowedEmoji = {
+			-- Remove an emoji from the parent's allowed set.
+			"!grinning_face",
+			-- Add another single emoji.
+			"alien",
+			-- Add a category of emoji (case shouldn't matter).
+			"c:Emoticons"
+		},
+		InheritsFrom = { "EmojiTestParentGroup" }
+	}
+	Shine.UserData.Groups.EmojiTestParentGroup = {
+		AllowedEmoji = {
+			"*_face"
+		}
+	}
+end )
+
+UnitTest:Test( "GetAvailableEmoji - Returns false if no whitelist is set", function( Assert )
+	Shine.UserData.Groups.EmojiTestParentGroup.AllowedEmoji = nil
+
+	local AllowedEmoji = Plugin:GetAvailableEmoji( "EmojiTestParentGroup" )
+	Assert:False( AllowedEmoji )
+end )
+
+UnitTest:Test( "GetAvailableEmoji - Returns a bitset of emoji indices if restrictions exist", function( Assert )
+	local AllowedEmoji = Plugin:GetAvailableEmoji( "EmojiTestGroup" )
+	Assert:True( Shine.Implements( AllowedEmoji, Shine.BitSet ) )
+	Assert:True( AllowedEmoji:GetCount() > 0 )
+
+	local AllEmoji = EmojiRepository.GetAllEmoji()
+	for Index in AllowedEmoji:Iterate() do
+		local EmojiDef = AllEmoji[ Index ]
+		local EmojiName = EmojiDef.Name
+		Assert.True(
+			"Unexpected allowed emoji: "..EmojiName,
+			( EmojiName == "alien" or EmojiName:EndsWith( "_face" ) or EmojiDef.Category.Name == "Emoticons" ) and
+			EmojiName ~= "grinning_face"
+		)
+	end
+
+	local EncodedBitSet = Plugin:EncodeBitsetToMessage( 1, 1, AllowedEmoji )
+	local ChunkIndex, NumChunks = Plugin.DecodeMessageChunkData( EncodedBitSet )
+	Assert:Equals( 1, ChunkIndex )
+	Assert:Equals( 1, NumChunks )
+
+	local DecodedBitSet = Plugin:DecodeBitSetFromChunks( { EncodedBitSet } )
+	Assert.Equals( "Encoding and decoding allowed emoji should result in the same bitset", AllowedEmoji, DecodedBitSet )
+	Assert.Equals(
+		"Should not have stored more data than necessary when decoding",
+		AllowedEmoji.MaxArrayIndex,
+		DecodedBitSet.MaxArrayIndex
+	)
+end )
+
+UnitTest:Test( "GetAvailableEmoji - Returns false if all emoji are allowed", function( Assert )
+	Shine.UserData.Groups.EmojiTestParentGroup.AllowedEmoji = { "*" }
+
+	local AllowedEmoji = Plugin:GetAvailableEmoji( "EmojiTestParentGroup" )
+	Assert:False( AllowedEmoji )
+end )
+
+UnitTest:ResetState()
+Shine.UserData.Groups.EmojiTestGroup = nil
+Shine.UserData.Groups.EmojiTestParentGroup = nil
+
+local MockFilter = Shine.BitSet()
+local GrinningFaceEmoji = EmojiRepository.GetEmojiDefinition( "grinning_face" )
+MockFilter:Add( GrinningFaceEmoji.Index )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns text as-is if it contains no emoji", function( Assert )
+	local Message = "This is a test message."
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( Message, Text )
+	Assert:Equals( Message, LogText )
+end )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns text without emoji that are not allowed", function( Assert )
+	local ShortName = GrinningFaceEmoji.ShortName
+	Assert:IsType( ShortName, "string" )
+	Assert:NotEquals( GrinningFaceEmoji.Name, ShortName )
+
+	local Message = StringFormat( "This is a :zzz:zzz:test: :zzz::message:zzz: with allowed emoji :%s:.", ShortName )
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( StringFormat( "This is a zzz:test: :message with allowed emoji :%s:.", ShortName ), Text )
+	Assert:Equals( "This is a zzz:test: :message with allowed emoji :grinning_face:.", LogText )
+end )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns an empty string if all emoji are filtered out and only whitespace remains", function( Assert )
+	local Message = ":zzz: :zzz: :zzz:"
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( "", Text )
+	Assert:Nil( LogText )
+end )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns whitespace as-is if it was provided originally", function( Assert )
+	local Message = "    "
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( Message, Text )
+	Assert:Equals( Message, LogText )
 end )

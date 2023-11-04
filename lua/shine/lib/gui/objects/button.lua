@@ -21,6 +21,7 @@ SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
 SGUI.AddBoundProperty( Button, "TextAlignment", "Label:SetAlignment" )
 SGUI.AddBoundProperty( Button, "TextAlignmentX", "Label:SetTextAlignmentX" )
 SGUI.AddBoundProperty( Button, "TextAlignmentY", "Label:SetTextAlignmentY" )
+SGUI.AddBoundProperty( Button, "TextAutoEllipsis", "Label:SetAutoEllipsis" )
 SGUI.AddBoundProperty( Button, "TextColour", {
 	"Label:SetColour",
 	function( self, Colour )
@@ -41,6 +42,18 @@ SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
 SGUI.AddBoundProperty( Button, "IconShadow", "Icon:SetShadow" )
 
+local function UpdateIconMargin( self )
+	if not self.Icon then return end
+
+	if self.Label and self.Label:GetIsVisible() then
+		self.Icon:SetMargin(
+			self.IconMargin or ( self.Horizontal and Units.Spacing( 0, 0, Units.HighResScaled( 8 ), 0 ) or nil )
+		)
+	else
+		self.Icon:SetMargin( nil )
+	end
+end
+
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
 	self.Background = self:MakeGUIItem()
@@ -52,22 +65,12 @@ function Button:Initialise()
 	self.IconIsVisible = true
 
 	self:SetLayout( SGUI.Layout:CreateLayout( "Horizontal" ) )
+
+	self:AddPropertyChangeListener( "TextIsVisible", UpdateIconMargin )
 end
 
 function Button:SetCustomSound( Sound )
 	self.Sound = Sound
-end
-
-local function UpdateIconMargin( self )
-	if not self.Icon then return end
-
-	if self.Label then
-		self.Icon:SetMargin(
-			self.IconMargin or ( self.Horizontal and Units.Spacing( 0, 0, Units.HighResScaled( 8 ), 0 ) or nil )
-		)
-	else
-		self.Icon:SetMargin( nil )
-	end
 end
 
 function Button:SetText( Text )
@@ -100,7 +103,9 @@ function Button:SetText( Text )
 	if self.TextColour then
 		Description:SetColour( self.TextColour )
 	end
-	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	if not self.PropagateAlphaInheritance then
+		Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	end
 	Description:SetIsVisible( self.TextIsVisible )
 	-- Need to offset the text based on its internal alignment.
 	Description:SetUseAlignmentCompensation( true )
@@ -123,10 +128,18 @@ function Button:SetText( Text )
 				return Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE )
 			end
 		} )
+		:ToElement( Description, "Fill", {
+			Filter = function() return self.TextAutoEllipsis end
+		} )
 		:ToElement( Description, "TextAlignmentX", {
 			Transformer = function( Horizontal )
 				return Horizontal and GUIItem.Align_Min or GUIItem.Align_Center
 			end
+		} ):BindProperty()
+
+	Binder():FromElement( self, "TextAutoEllipsis" )
+		:ToElement( Description, "Fill", {
+			Filter = function() return self.Horizontal end
 		} ):BindProperty()
 
 	if self.Font then
@@ -135,6 +148,10 @@ function Button:SetText( Text )
 
 	if self.TextScale then
 		Description:SetTextScale( self.TextScale )
+	end
+
+	if self.TextAutoEllipsis ~= nil then
+		Description:SetAutoEllipsis( self.TextAutoEllipsis )
 	end
 
 	self.Layout:AddElement( Description )
@@ -194,7 +211,9 @@ function Button:SetIcon( IconName, Font, Scale )
 		Icon:SetAutoFont( self.IconAutoFont )
 	end
 	Icon:SetText( IconName )
-	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	if not self.PropagateAlphaInheritance then
+		Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	end
 	Icon:SetIsVisible( self.IconIsVisible )
 	if self.IconShadow ~= nil then
 		Icon:SetShadow( self.IconShadow )
@@ -236,7 +255,7 @@ function Button:SetActiveCol( Col )
 
 	if self.Highlighted then
 		self:StopFade( self.Background )
-		self.Background:SetColor( Col )
+		self:SetBackgroundColour( Col )
 	end
 end
 
@@ -245,12 +264,8 @@ function Button:SetInactiveCol( Col )
 
 	if not self.Highlighted then
 		self:StopFade( self.Background )
-		self.Background:SetColor( Col )
+		self:SetBackgroundColour( Col )
 	end
-end
-
-function Button:SetDoClick( Func )
-	self.DoClick = Func
 end
 
 function Button:SetHighlightTexture( Texture )
@@ -360,35 +375,11 @@ end
 
 SGUI:AddMixin( Button, "AutoSizeText" )
 
--- Override GetContentSizeForAxis to account for both an icon and a label.
 do
 	local LabelSizeMethod = {
 		"GetCachedTextWidth",
 		"GetCachedTextHeight"
 	}
-	local MarginSizeMethod = {
-		"GetWidth",
-		"GetHeight"
-	}
-
-	local function GetTotalSize( self, Axis )
-		local Size = 0
-
-		if self.Label then
-			Size = Size + self.Label[ LabelSizeMethod[ Axis ] ]( self.Label )
-		end
-
-		if self.Icon then
-			Size = Size + self.Icon[ LabelSizeMethod[ Axis ] ]( self.Icon )
-				+ Units.Spacing[ MarginSizeMethod[ Axis ] ]( self.Icon:GetComputedMargin() )
-		end
-
-		if self.Padding then
-			Size = Size + Units.Spacing[ MarginSizeMethod[ Axis ] ]( self:GetComputedPadding() )
-		end
-
-		return Size
-	end
 
 	local function GetSize( Label, Axis )
 		if not Label then return 0 end
@@ -396,25 +387,20 @@ do
 		return Label[ LabelSizeMethod[ Axis ] ]( Label )
 	end
 
-	local function GetMaxSize( self, Axis )
-		return Max( 0, GetSize( self.Label, Axis ), GetSize( self.Icon, Axis ) )
-	end
-
-	local ContentSizeHandlers = {
-		[ true ] = {
-			-- When horizontal, the width is the total but the height is just the max of the icon and label heights.
-			GetTotalSize,
-			GetMaxSize
-		},
-		[ false ] = {
-			-- When vertical, the width is the max of the icon and label widths, and the height is the total.
-			GetMaxSize,
-			GetTotalSize
-		}
-	}
-
 	function Button:GetContentSizeForAxis( Axis )
-		return ContentSizeHandlers[ self.Horizontal ][ Axis ]( self, Axis )
+		if self.Label then
+			-- Temporarily override the computed size to be based on the label's actual size to ensure the returned size
+			-- is based on the maximum size of the label. Label may be set to fill here for horizontal buttons.
+			self.Label.GetComputedSize = GetSize
+		end
+
+		local Size = self:GetContentSizeForAxisFromLayout( Axis )
+
+		if self.Label then
+			self.Label.GetComputedSize = nil
+		end
+
+		return Size
 	end
 end
 

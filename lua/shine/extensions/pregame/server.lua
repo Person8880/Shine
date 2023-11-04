@@ -115,10 +115,6 @@ do
 	Plugin.ConfigValidator = Validator
 end
 
-function Plugin:OnFirstThink()
-	Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
-end
-
 function Plugin:ResetState()
 	self.CountStart = nil
 	self.CountEnd = nil
@@ -137,6 +133,8 @@ function Plugin:Initialise()
 	for i = 1, #self.Config.AbortIfTeamsEmpty do
 		self.TeamsToEmptyCheck[ self.Config.AbortIfTeamsEmpty[ i ] ] = true
 	end
+
+	self.dt.AllowAttack = self:CheckPlayerCanAttack() ~= false
 
 	self.Enabled = true
 
@@ -226,18 +224,28 @@ function Plugin:ClientConfirmConnect( Client )
 	self:ShowCountdown( TimeLeft, Client )
 end
 
+local function IsPregameState( GameState )
+	return GameState == kGameState.PreGame or GameState == kGameState.NotStarted
+end
+
 function Plugin:CheckPlayerCanAttack()
 	if self.Config.AllowAttackPreGame then return end
 
 	local Gamerules = GetGamerules()
-	local GameState = Gamerules:GetGameState()
+	local GameState = Gamerules and Gamerules:GetGameState()
 
-	if GameState == kGameState.PreGame or GameState == kGameState.NotStarted then
+	if IsPregameState( GameState ) then
 		return false
 	end
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
+	if not self.Config.AllowAttackPreGame and IsPregameState( State ) then
+		self.dt.AllowAttack = false
+	else
+		self.dt.AllowAttack = true
+	end
+
 	if State < kGameState.Countdown then return end
 
 	if self.CountStart then

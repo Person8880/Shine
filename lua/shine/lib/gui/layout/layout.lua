@@ -4,12 +4,14 @@
 
 local SGUI = Shine.GUI
 
+local assert = assert
 local getmetatable = getmetatable
 local rawget = rawget
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableInsert = table.insert
 local TableRemoveByValue = table.RemoveByValue
+local Vector = Vector
 
 local Layout = {}
 SGUI.Layout = Layout
@@ -20,9 +22,11 @@ BaseLayout.__index = BaseLayout
 BaseLayout.IsLayout = true
 
 SGUI.AddProperty( BaseLayout, "Parent" )
-SGUI.AddProperty( BaseLayout, "Pos" )
+-- Unlike elements, changing a layout's position does require re-evaluation, as it will change the calculated GUI tree
+-- position for all children.
+local SetPos = SGUI.AddProperty( BaseLayout, "Pos", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Fill", nil, { "InvalidatesParent" } )
-SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
+local SetSize = SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "AutoSize", nil, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Padding", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Margin", nil, { "InvalidatesParent" } )
@@ -50,6 +54,8 @@ function BaseLayout:Init( Data )
 		self.Fill = true
 	end
 
+	self.IsScrollable = self.Parent and not self.Parent.IsLayout and self.Parent.IsScrollable
+
 	for i = 1, #self.Elements do
 		local Element = self.Elements[ i ]
 		if Element.IsLayout then
@@ -60,6 +66,23 @@ function BaseLayout:Init( Data )
 
 	return self
 end
+
+-- Copy position/size values to ensure equality checks don't miss changes due to reference equality.
+function BaseLayout:SetPos( Pos )
+	return SetPos( self, Vector( Pos ) )
+end
+
+function BaseLayout:SetSize( Size )
+	return SetSize( self, Vector( Size ) )
+end
+
+-- These are not inherited from the base control as position and size in layouts is just a table field, its not derived
+-- from a GUIItem. Note that layouts do not support easing, so these always point at the underlying fields. Use a
+-- control if easing is desired.
+BaseLayout.SetLayoutPos = BaseLayout.SetPos
+BaseLayout.GetLayoutPos = BaseLayout.GetPos
+BaseLayout.SetLayoutSize = BaseLayout.SetSize
+BaseLayout.GetLayoutSize = BaseLayout.GetSize
 
 function BaseLayout:GetParentControl()
 	local Parent = self.Parent
@@ -91,18 +114,28 @@ end
 
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
+	assert( not Elements[ Element ], "Attempted to add element to layout twice!" )
+
 	Elements[ #Elements + 1 ] = Element
+	Elements[ Element ] = true
 
 	OnAddElement( self, Element )
 end
 
 function BaseLayout:InsertElement( Element, Index )
-	TableInsert( self.Elements, Index, Element )
+	local Elements = self.Elements
+	assert( not Elements[ Element ], "Attempted to add element to layout twice!" )
+
+	TableInsert( Elements, Index, Element )
+	Elements[ Element ] = true
 	OnAddElement( self, Element )
 end
 
 function BaseLayout:InsertElementAfter( Element, AfterElement )
 	local Elements = self.Elements
+	assert( Elements[ Element ], "Provided element to insert after is not in the layout!" )
+	assert( not Elements[ AfterElement ], "Attempted to add element to layout twice!" )
+
 	for i = 1, #Elements do
 		if Elements[ i ] == Element then
 			TableInsert( Elements, i + 1, AfterElement )
@@ -110,7 +143,8 @@ function BaseLayout:InsertElementAfter( Element, AfterElement )
 		end
 	end
 
-	OnAddElement( self, Element )
+	Elements[ AfterElement ] = true
+	OnAddElement( self, AfterElement )
 end
 
 local function OnRemoveElement( self, Element )
@@ -125,11 +159,29 @@ local function OnRemoveElement( self, Element )
 end
 
 function BaseLayout:RemoveElement( Element )
-	if not TableRemoveByValue( self.Elements, Element ) then return end
+	local Elements = self.Elements
+	if not Elements[ Element ] then return end
+
+	Elements[ Element ] = nil
+	TableRemoveByValue( Elements, Element )
 
 	OnRemoveElement( self, Element )
 
 	self:InvalidateLayout()
+end
+
+--[[
+	Determines whether the given element is contained within this layout, either as a direct child, or as a descendant.
+
+	This can be useful to know whether this layout will affect the given element's position/size directly or indirectly.
+]]
+function BaseLayout:ContainsElement( Element )
+	-- Traverse the ancestors until this layout is found or we reach the root of the element tree.
+	local LayoutParent = Element.LayoutParent or Element.Parent
+	while LayoutParent and LayoutParent ~= self do
+		LayoutParent = LayoutParent.LayoutParent or LayoutParent.Parent
+	end
+	return LayoutParent == self
 end
 
 function BaseLayout:Clear()
@@ -137,6 +189,7 @@ function BaseLayout:Clear()
 		local Element = self.Elements[ i ]
 		OnRemoveElement( self, Element )
 		self.Elements[ i ] = nil
+		self.Elements[ Element ] = nil
 	end
 
 	self:InvalidateLayout()
@@ -148,13 +201,13 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"ComputeSpacing",
 	"GetContentSizeForAxis",
 	"GetMaxSizeAlongAxis",
+	"GetSizeForAxis",
 	"GetComputedPadding",
 	"GetComputedMargin",
 	"GetComputedSize",
 	"GetParentSize",
 	"InvalidateParent",
 	"InvalidateLayout",
-	"HandleLayout",
 	"GetLayoutOffset",
 	"PreComputeWidth",
 	"PreComputeHeight",
@@ -162,11 +215,21 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"AddPropertyChangeListener",
 	"GetPropertySource",
 	"GetPropertyTarget",
-	"RemovePropertyChangeListener"
+	"RemovePropertyChangeListener",
+	"IterateLayoutAncestors"
 } )
 
+function BaseLayout:HandleLayout()
+	for i = 1, 5 do
+		if not self.LayoutIsInvalid then break end
+
+		self.LayoutIsInvalid = false
+		self:PerformLayout()
+	end
+end
+
 function BaseLayout:Think( DeltaTime )
-	self:HandleLayout( DeltaTime )
+	self:HandleLayout()
 
 	-- Layouts must make sure child layouts also think (and thus handle layout invalidations)
 	for i = 1, #self.LayoutChildren do
@@ -176,20 +239,22 @@ function BaseLayout:Think( DeltaTime )
 end
 
 function BaseLayout:PerformLayout()
-	-- When this layout is invalidated, invalidate all of its children too.
+	-- When this layout is invalidated, handle layout invalidation on all of its children too.
 	-- This ensures layout changes cascade downwards in a single frame, rather than
 	-- some children waiting for the next frame to invalidate and thus causing a slight jitter.
 	for i = 1, #self.Elements do
-		self.Elements[ i ]:InvalidateLayout( true )
+		self.Elements[ i ]:HandleLayout( 0 )
 	end
 end
 
 function BaseLayout:__tostring()
 	return StringFormat(
-		"[SGUI] %s Layout | %d Children (%d Layout Children)",
+		"[SGUI - %s] %s Layout | %d Children (%d Layout Children) | Attached to: [%s]",
+		self.ID,
 		self.Class,
 		#self.Elements,
-		#self.LayoutChildren
+		#self.LayoutChildren,
+		self:GetParentControl()
 	)
 end
 
@@ -216,6 +281,7 @@ function Layout:RegisterUnit( Name, MetaTable )
 	self.Units[ Name ] = MetaTable
 end
 
+local LayoutID = 0
 function Layout:CreateLayout( Name, ... )
 	local MetaTable = self.Types[ Name ]
 	Shine.AssertAtLevel(
@@ -223,7 +289,9 @@ function Layout:CreateLayout( Name, ... )
 		"Attempted to construct unregistered or abstract layout type: %s", 3, Name
 	)
 
-	return setmetatable( { Class = Name }, self.Types[ Name ] ):Init( ... )
+	LayoutID = LayoutID + 1
+
+	return setmetatable( { Class = Name, ID = LayoutID }, self.Types[ Name ] ):Init( ... )
 end
 
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/layout/units" )

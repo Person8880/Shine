@@ -17,7 +17,6 @@ local tonumber = tonumber
 local Vector = Vector
 
 local ScrollPos = Vector2( 0, 32 )
-local ZeroColour = Colour( 0, 0, 0, 0 )
 
 local DefaultHeaderSize = 32
 local DefaultLineSize = 32
@@ -27,9 +26,10 @@ local Absolute = Units.Absolute
 local Percentage = Units.Percentage
 local UnitVector = Units.UnitVector
 
-SGUI.AddBoundProperty( List, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( List, "Colour", "self:SetBackgroundColour" )
 SGUI.AddProperty( List, "SortedExternally", false )
 SGUI.AddProperty( List, "MultiSelect", false )
+local SetRowPosTransition = SGUI.AddProperty( List, "RowPosTransition" )
 SGUI.AddProperty( List, "ScrollRate", 3 )
 
 function List:Initialise()
@@ -41,19 +41,20 @@ function List:Initialise()
 	-- This element ensures the entries aren't visible past the bounds of the list.
 	-- Note that self.Background is not used as it would crop the scrollbar.
 	local CroppingBox = self:MakeGUICroppingItem()
-	CroppingBox:SetColor( ZeroColour )
+	CroppingBox:SetShader( SGUI.Shaders.Invisible )
 	Background:AddChild( CroppingBox )
 
 	self.CroppingBox = CroppingBox
 
 	-- This dummy element will be moved when scrolling.
 	local ScrollParent = self:MakeGUIItem()
-	ScrollParent:SetColor( ZeroColour )
+	ScrollParent:SetShader( SGUI.Shaders.Invisible )
 
 	CroppingBox:AddChild( ScrollParent )
 
 	self.ScrollParent = ScrollParent
 	self.RowCount = 0
+	self.Rows = {}
 	self.HeaderSize = DefaultHeaderSize
 	self.LineSize = DefaultLineSize
 	self.ScrollbarWidth = 10
@@ -70,6 +71,14 @@ function List:Initialise()
 			self.HeaderLayout
 		}
 	} )
+end
+
+function List:GetRowCount()
+	return self.RowCount
+end
+
+function List:GetRow( Index )
+	return self.Rows[ Index ]
 end
 
 --[[
@@ -98,9 +107,7 @@ function List:SetLineSize( Size )
 	end
 
 	local Rows = self.Rows
-	if not Rows then return end
-
-	for i = 1, #Rows do
+	for i = 1, self.RowCount do
 		local Row = Rows[ i ]
 
 		if SGUI.IsValid( Row ) then
@@ -149,15 +156,15 @@ function List:SetColumns( ... )
 		Start = 1
 	end
 
-	self.ColumnCount = Number
-
 	if self.Columns then
-		for i = 1, self.Columns do
+		for i = 1, self.ColumnCount do
 			self.Columns[ i ]:Destroy()
 		end
 	end
 
 	local Columns = {}
+
+	self.ColumnCount = Number
 	self.Columns = Columns
 
 	self.HeaderLayout.Elements = {}
@@ -188,6 +195,10 @@ function List:SetColumns( ... )
 	self:InvalidateLayout()
 end
 
+function List:GetColumnCount()
+	return self.ColumnCount
+end
+
 function List:SetNumericColumn( Col )
 	self.NumericColumns = self.NumericColumns or {}
 
@@ -216,16 +227,18 @@ end
 	Sets the list's size, just a simple vector input.
 ]]
 function List:SetSize( Size )
-	self.BaseClass.SetSize( self, Size )
+	if not self.BaseClass.SetSize( self, Size ) then return false end
+
 	self.CroppingBox:SetSize( Size )
-	self.Size = Size
+	self:SetCroppingBounds( Vector2( 0, 0 ), Size )
+
+	return true
 end
 
 function List:PerformLayout()
 	local Size = self:GetSize()
 
 	self.ScrollPos = Vector2( 0, self.HeaderSize )
-
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
 
 	if self.RowCount > self.MaxRows then
@@ -238,8 +251,8 @@ function List:PerformLayout()
 		end
 	elseif self.Scrollbar then
 		self.Scrollbar:Destroy()
-
 		self.Scrollbar = nil
+		self.ScrollParentPos = nil
 		self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 	end
 
@@ -254,9 +267,15 @@ function List:PerformLayout()
 		self.RowSize.x = Size.x
 	end
 
-	if NeedsRowSizeRefresh and self.Rows then
-		for i = 1, #self.Rows do
-			local Row = self.Rows[ i ]
+	local Alt = false
+	for i = 1, self.RowCount do
+		local Row = self.Rows[ i ]
+		if Row:GetIsVisible() then
+			Row:SetAltStyle( Alt )
+			Alt = not Alt
+		end
+
+		if NeedsRowSizeRefresh then
 			Row:SetSize( self.RowSize )
 			self:SetSpacingForRow( Row )
 		end
@@ -279,6 +298,14 @@ function List:SetRowFontScale( Font, Scale )
 	self.RowFont = Font
 	self.RowTextScale = Scale
 	self:ForEach( "Rows", "SetFontScale", Font, Scale )
+end
+
+function List:SetRowPosTransition( RowPosTransition )
+	if not SetRowPosTransition( self, RowPosTransition ) then return false end
+
+	self:ForEach( "Rows", "SetLayoutPosTransition", RowPosTransition )
+
+	return true
 end
 
 function List:SetSpacingForRow( Row )
@@ -304,13 +331,12 @@ function List:AddRow( ... )
 		self:InvalidateLayout( true )
 	end
 
-	local Rows = self.Rows or {}
-	self.Rows = Rows
-
+	local Rows = self.Rows
 	local RowCount = self.RowCount
 	local Row = SGUI:Create( "ListEntry", self, self.ScrollParent )
 	RowCount = RowCount + 1
 	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
+	Row:SetLayoutPosTransition( self.RowPosTransition )
 
 	if self.RowFont then
 		Row:SetFont( self.RowFont )
@@ -351,6 +377,16 @@ function List:SetScrollbarWidth( ScrollbarWidth )
 	end
 end
 
+local function OnSmoothScrollUpdate( self )
+	-- Ensure children perform their initial/updated layout as scrolling occurs.
+	self:CallOnChildren( "InvalidateCroppingState" )
+end
+
+local function OnScrollChanged( self )
+	self:InvalidateMouseState( true )
+	return OnSmoothScrollUpdate( self )
+end
+
 --[[
 	Adds a scrollbar and sets it up to scroll the rows.
 ]]
@@ -363,23 +399,30 @@ function List:AddScrollbar()
 	Scrollbar._CallEventsManually = true
 
 	self.Scrollbar = Scrollbar
+	self.ScrollParentPos = Vector2( 0, 0 )
+end
 
-	function self:OnScrollChange( Pos, MaxPos, Smoothed )
-		local Fraction = Pos / MaxPos
+function List:OnScrollChange( Pos, MaxPos, Smoothed )
+	local Fraction = Pos / MaxPos
+	local RowDiff = self.RowCount - self.MaxRows
 
-		local RowDiff = self.RowCount - self.MaxRows
+	self.ScrollParentPos.y = -RowDiff * self.LineSize * Fraction
 
-		if self.ScrollParentPos then
-			self.ScrollParentPos.y = -RowDiff * self.LineSize * Fraction
-		else
-			self.ScrollParentPos = Vector2( 0, -RowDiff * self.LineSize * Fraction )
-		end
-
-		if Smoothed then
-			self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.3, nil, math.EaseOut, 3 )
-		else
-			self.ScrollParent:SetPosition( self.ScrollParentPos )
-		end
+	if Smoothed then
+		local EasingData = self:MoveTo(
+			self.ScrollParent,
+			nil,
+			self.ScrollParentPos,
+			0,
+			0.3,
+			OnScrollChanged,
+			math.EaseOut,
+			3
+		)
+		EasingData.OnUpdate = OnSmoothScrollUpdate
+	else
+		self.ScrollParent:SetPosition( self.ScrollParentPos )
+		OnScrollChanged( self )
 	end
 end
 
@@ -513,14 +556,24 @@ end
 ]]
 function List:Clear()
 	local Rows = self.Rows
-	if not Rows then return end
+	local AnySelected = false
+	for i = 1, self.RowCount do
+		local Row = Rows[ i ]
+		if Row == self.SelectedRow and self.OnRowDeselected then
+			self:OnRowDeselected( i, Row )
+		end
 
-	for i = 1, #Rows do
-		Rows[ i ]:Destroy()
-		self.Layout:RemoveElement( Rows[ i ] )
+		if Row.Selected then
+			AnySelected = true
+		end
+
+		Row:Destroy()
+		self.Layout:RemoveElement( Row )
+
+		Rows[ i ] = nil
+		self.RowCount = self.RowCount - 1
 	end
 
-	self.Rows = nil
 	self.RowCount = 0
 
 	if self.Scrollbar then
@@ -531,6 +584,10 @@ function List:Clear()
 	self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 	self.SelectedRow = nil
 	self.RootMultiSelectRow = nil
+
+	if AnySelected and self.MultiSelect then
+		self:OnSelectionChanged( {} )
+	end
 end
 
 --[[
@@ -538,10 +595,18 @@ end
 ]]
 function List:RemoveRow( Index )
 	local Rows = self.Rows
-	if not Rows then return end
-
 	local OldRow = Rows[ Index ]
 	if not OldRow then return end
+
+	if self.SelectedRow == OldRow then
+		self.SelectedRow = nil
+		if self.OnRowDeselected then
+			self:OnRowDeselected( Index, OldRow )
+		end
+	elseif self.MultiSelect and OldRow.Selected then
+		OldRow.Selected = false
+		self:OnSelectionChanged( self:GetSelectedRows() )
+	end
 
 	OldRow:Destroy()
 
@@ -562,9 +627,7 @@ function List:RemoveRow( Index )
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	end
 
-	if self.SelectedRow == OldRow then
-		self.SelectedRow = nil
-	end
+
 	if self.RootMultiSelectRow == OldRow then
 		self.RootMultiSelectRow = nil
 	end
@@ -575,16 +638,13 @@ end
 function List:GetSelectedRows()
 	local Rows = self.Rows
 	local Selected = {}
-	if not Rows then return Selected end
-
 	local Count = 0
 
-	for i = 1, #Rows do
+	for i = 1, self.RowCount do
 		local Row = Rows[ i ]
 
 		if SGUI.IsValid( Row ) and Row.Selected then
 			Count = Count + 1
-
 			Selected[ Count ] = Row
 		end
 	end
@@ -618,7 +678,7 @@ function List:OnRowMultiSelect( Index, Row, SelectFromLast )
 		local NumWereSelected = 0
 		if not SGUI:IsControlDown() then
 			local Rows = self.Rows
-			for i = 1, #Rows do
+			for i = 1, self.RowCount do
 				if Rows[ i ] ~= Row then
 					NumWereSelected = NumWereSelected + ( Rows[ i ]:GetSelected() and 1 or 0 )
 					Rows[ i ]:SetSelected( false )
@@ -635,7 +695,7 @@ function List:OnRowMultiSelect( Index, Row, SelectFromLast )
 		local MinIndex = Min( RootIndex, Index )
 		local MaxIndex = Max( RootIndex, Index )
 		local Rows = self.Rows
-		for i = 1, #Rows do
+		for i = 1, self.RowCount do
 			Rows[ i ]:SetSelected( i >= MinIndex and i <= MaxIndex )
 		end
 	end

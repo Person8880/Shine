@@ -167,6 +167,10 @@ function Locale:GetInterpolatedPhrase( Source, Key, FormatArgs )
 	return StringInterpolate( self:GetPhrase( Source, Key ), FormatArgs, self:GetLanguageDefinition() )
 end
 
+function Locale:SelectPhrase( Phrases, DefaultValue )
+	return Phrases[ self:GetCurrentLanguage() ] or Phrases[ self.DefaultLanguage ] or DefaultValue
+end
+
 function Locale:OnLoaded()
 	local TableSort = table.sort
 

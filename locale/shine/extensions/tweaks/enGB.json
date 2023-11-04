@@ -1,0 +1,8 @@
+{
+	"CLIENT_CONFIG_TAB": "Tweaks",
+	"ALIEN_HIGHLIGHT_COLOUR_DESCRIPTION": "Alien minimap highlight colour:",
+	"MARINE_HIGHLIGHT_COLOUR_DESCRIPTION": "Marine minimap highlight colour:",
+	"HOSTILE_HIGHLIGHT_COLOUR_DESCRIPTION": "Hostile minimap highlight colour:",
+	"CLIENT_PLUGIN_NAME": "Tweaks",
+	"CLIENT_PLUGIN_DESCRIPTION": "Provides the following minor tweaks:\n* Highlights the current location when looking at the minimap as a marine or alien."
+}

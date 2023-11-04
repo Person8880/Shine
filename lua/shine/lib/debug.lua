@@ -504,6 +504,7 @@ do
 		__PrintAsString = true
 	} )
 
+	local MAX_STACK_LEVELS_BEFORE_STACK_OVERFLOW = 50
 	local INFO_MASK = "Snl"
 	function Shine.StackDump( Level )
 		Level = Level or 1
@@ -511,15 +512,41 @@ do
 		local CurrentLevel = Level + 1
 		local Info = DebugGetInfo( CurrentLevel, INFO_MASK )
 		local Output = { "Stack traceback:" }
+		local SeenLines = {}
+		local SeenStackOverflow = false
 
 		while Info do
 			local TypePrinter = TypeNames[ Info.what ]
-			Output[ #Output + 1 ] = StringFormat( "    %s:%d in %s", Info.short_src,
-				Info.currentline or -1, TypePrinter and TypePrinter( Info ) or "?" )
+			local Line = StringFormat(
+				"    %s:%d in %s",
+				Info.short_src,
+				Info.currentline or -1,
+				TypePrinter and TypePrinter( Info ) or "?"
+			)
+			if SeenLines[ Line ] and CurrentLevel > MAX_STACK_LEVELS_BEFORE_STACK_OVERFLOW then
+				if not SeenStackOverflow then
+					SeenStackOverflow = true
+					Output[ #Output + 1 ] = "\n    Duplicate lines omitted...\n"
+				end
+			else
+				SeenLines[ Line ] = true
+				Output[ #Output + 1 ] = Line
 
-			local Locals = table.ToDebugString( Shine.GetLocals( CurrentLevel, NilMarker ), "        " )
-			if Locals ~= "" then
-				Output[ #Output + 1 ] = Locals
+				local Success, Locals = xpcall(
+					table.ToDebugString,
+					debug.traceback,
+					Shine.GetLocals( CurrentLevel, NilMarker ),
+					"        "
+				)
+				if not Success then
+					Output[ #Output + 1 ] = StringFormat(
+						"        Failed to print local variables at stack level %s: %s",
+						CurrentLevel,
+						Locals
+					)
+				elseif Locals ~= "" then
+					Output[ #Output + 1 ] = Locals
+				end
 			end
 
 			CurrentLevel = CurrentLevel + 1

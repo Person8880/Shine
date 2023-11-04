@@ -60,6 +60,34 @@ function Plugin:AddMapFromCycle( ConfigMaps, Map )
 	return true
 end
 
+local function IsValidMapName( Name ) return IsType( Name, "string" ) end
+local function ValidateGroups( self, Groups )
+	local ValidatedGroups = {}
+
+	for i = 1, #Groups do
+		local Group = Groups[ i ]
+		if IsType( Group, "table" ) and IsType( Group.maps, "table" ) and IsType( Group.name, "string" ) then
+			local ValidMaps = Shine.Stream.Of( Group.maps ):Filter( IsValidMapName ):AsTable()
+			if #ValidMaps > 0 then
+				ValidatedGroups[ #ValidatedGroups + 1 ] = {
+					maps = ValidMaps,
+					name = Group.name,
+					select = Group.select
+				}
+			else
+				self.Logger:Warn( "Found no valid maps in map group %d ('%s').", i, Group.name )
+			end
+		else
+			self.Logger:Warn(
+				"Map group at index %d is invalid. Ensure it is a JSON object with a \"maps\" array and \"name\" value.",
+				i
+			)
+		end
+	end
+
+	return ValidatedGroups
+end
+
 function Plugin:SetupMaps( Cycle )
 	self.MapProbabilities = {}
 	self.MapChoices = {}
@@ -73,7 +101,7 @@ function Plugin:SetupMaps( Cycle )
 
 			local ConfigMaps = self.Config.Maps
 			if IsType( Cycle.groups, "table" ) then
-				self.MapGroups = Cycle.groups
+				self.MapGroups = ValidateGroups( self, Cycle.groups )
 			end
 
 			for i = 1, #Maps do
@@ -295,7 +323,7 @@ do
 	end
 
 	function Plugin:AdvanceMapGroup( LastMapGroup )
-		if not self.MapGroups then return end
+		if not self.MapGroups or self.Config.GroupCycleMode ~= self.GroupCycleMode.SEQUENTIAL then return end
 
 		local Group, Index = TableFindByField( self.MapGroups, "name", LastMapGroup )
 		local NextIndex = Index == #self.MapGroups and 1 or ( Index + 1 )

@@ -2,6 +2,8 @@
 	Messaging module.
 ]]
 
+if Predict then return end
+
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local Shine = Shine
@@ -65,13 +67,14 @@ if Client then
 		end
 	end
 
-	function MessageModule:NotifyRichText( RichText )
+	function MessageModule:NotifyRichText( RichText, Options )
 		ChatAPI:AddRichTextMessage( {
 			Source = {
 				Type = ChatAPI.SourceTypeName.PLUGIN,
 				ID = self:GetName()
 			},
-			Message = RichText
+			Message = RichText,
+			ParseEmoji = Options and Options.ParseEmoji
 		} )
 	end
 
@@ -219,14 +222,15 @@ else
 		Shine:TranslatedNotifyCommandError( Player, Message, self.__Name )
 	end
 
-	function MessageModule:NotifyRichText( Player, RichText )
+	function MessageModule:NotifyRichText( Player, RichText, Options )
 		ChatAPI:AddRichTextMessage( {
 			Source = {
 				Type = ChatAPI.SourceTypeName.PLUGIN,
 				ID = self:GetName()
 			},
 			Message = RichText,
-			Targets = Player
+			Targets = Player,
+			ParseEmoji = Options and Options.ParseEmoji
 		} )
 	end
 end

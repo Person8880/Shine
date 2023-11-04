@@ -1,0 +1,76 @@
+<shader>
+	<shader_factory>GUI</shader_factory>
+
+	<inputs>
+		<input name="baseTexture" type="texture" address="wrap" />
+
+		<!--
+			The size of the rendered area in pixels.
+			This should usually be the GUIItem's size, as the rectangle will be rendered at the centre of this area.
+		-->
+		<input name="size" type="float2">(0, 0)</input>
+
+		<!--
+			A softness factor to smooth out the edges of the box. Larger values blur the edges more and shrink the
+			rectangle.
+
+			A value of 0 will render the rectangle with no smoothing, which will look aliased.
+		-->
+		<input name="edgeSoftness" type="float">1.0</input>
+
+		<!-- The individual border radii for each corner (top left, top right, bottom right, bottom left). -->
+		<input name="radii" type="float4">(4.0, 4.0, 4.0, 4.0)</input>
+	</inputs>
+
+	<code>
+	<![CDATA[
+		float GetSDFForRoundedRect( float2 centre, float2 boxSize, float radius ) {
+			return length( max( abs( centre ) - boxSize + radius, 0.0f ) ) - radius;
+		}
+
+		// Renders a single-colour rounded rectange, smoothly rounding the corners with individual radii.
+		// This does not include a border, only a single colour is used.
+		void MaterialShader( bool textured, float2 texCoord, float4 color, inout Material material ) {
+			float4 backgroundColour;
+			if ( textured ) {
+				backgroundColour = tex2D( baseTexture, texCoord ) * color;
+			} else {
+				backgroundColour = color;
+			}
+
+			float2 pixelPosition = texCoord * size;
+			float2 centrePoint = size * 0.5f;
+
+			// Subtract edge softness from the size to allow for the smoothing to render within the bounds of the
+			// GUIItem. Otherwise, the smoothed edge will be cut off by the bounding box.
+			float2 compensatedSize = size - ( edgeSoftness * 2.0f );
+
+			float cornerRadius = 0.0f;
+			// Top left corner.
+			cornerRadius += float( pixelPosition.x <= centrePoint.x && pixelPosition.y <= centrePoint.y ) * radii[ 0 ];
+			// Top right corner.
+			cornerRadius += float( pixelPosition.x > centrePoint.x && pixelPosition.y <= centrePoint.y ) * radii[ 1 ];
+			// Bottom right corner.
+			cornerRadius += float( pixelPosition.x > centrePoint.x && pixelPosition.y > centrePoint.y ) * radii[ 2 ];
+			// Bottom left corner.
+			cornerRadius += float( pixelPosition.x <= centrePoint.x && pixelPosition.y > centrePoint.y ) * radii[ 3 ];
+
+			// Use a basic distance check to determine each pixel's alpha.
+			// The box is always assumed to be positioned in the centre of the rendered area.
+			float distance = GetSDFForRoundedRect(
+				pixelPosition - centrePoint,
+				compensatedSize * 0.5f,
+				max( cornerRadius - edgeSoftness, 0.0f )
+			);
+
+			// Apply smoothing, pixels that are within the corner regions will be smoothly faded out.
+			float alpha = 1.0f - smoothstep( 0.0f, edgeSoftness * 2.0f, distance );
+			float4 exteriorColour = float4( backgroundColour.rgb, 0.0f );
+			float4 interiorColour = float4( backgroundColour.rgb, alpha );
+
+			material.resultColor = lerp( exteriorColour, interiorColour, alpha );
+			material.resultColor.a *= backgroundColour.a;
+		}
+	]]>
+	</code>
+</shader>

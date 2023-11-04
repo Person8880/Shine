@@ -10,8 +10,10 @@ local White = Colour( 1, 1, 1, 1 )
 local WindowBackground = White
 local HorizontalTabBackground = Colour( 0.85, 0.85, 0.85, 1 )
 local DarkButton = Colour( 0.9, 0.9, 0.9, 1 )
+local CheckBoxColour = Colour( 0.7, 0.7, 0.7, 1 )
 local ButtonHighlight = Colour( 1, 0.878, 0.666, 1 )
-local BrightText = Colour( 0.25, 0.25, 0.25, 1 )
+local BrightText = Colour( 0.1, 0.1, 0.1, 1 )
+local MutedText = Colour( 0.35, 0.35, 0.35, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
 local SliderDarkLineColour = Colour( 0.2, 0.2, 0.2, 1 )
 
@@ -19,7 +21,7 @@ local Danger = Colour( 1, 0, 0 )
 local Warning = Colour( 1, 0.6, 0 )
 local Info = Colour( 0, 0.5, 1 )
 
-local SuccessButton = Colour( 0.1, 1, 0.1, 1 )
+local SuccessButton = Colour( 0, 0.7, 0 )
 local DarkerSuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
 local DangerButton = Colour( 1, 0.2, 0.1, 1 )
 local CategoryButton = Colour( 0.8, 0.8, 0.8, 1 )
@@ -112,16 +114,25 @@ local Skin = {
 	},
 	CheckBox = {
 		Default = {
-			BackgroundColour = DarkButton,
+			BackgroundColour = CheckBoxColour,
 			CheckedColour = OrangeButtonHighlight,
 			TextColour = BrightText,
 			Font = Fonts.kAgencyFB_Small,
 			States = {
 				Disabled = {
-					BackgroundColour = SGUI.ColourWithAlpha( DarkButton, 0.5 ),
+					BackgroundColour = SGUI.ColourWithAlpha( CheckBoxColour, 0.5 ),
 					CheckedColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.5 ),
 					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
 				}
+			}
+		},
+		Radio = {
+			-- Turn radio checkboxes into circles using 50% border radius on each corner.
+			BorderRadii = {
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY
 			}
 		}
 	},
@@ -133,6 +144,11 @@ local Skin = {
 	ColourLabel = {
 		Default = {
 			Font = Fonts.kAgencyFB_Small
+		}
+	},
+	ColourPicker = {
+		Default = {
+			BackgroundColour = DarkButton
 		}
 	},
 	Dropdown = {
@@ -169,6 +185,9 @@ local Skin = {
 		},
 		DangerLabel = {
 			Colour = Colour( 1, 0.2, 0.1, 1 )
+		},
+		InfoLabel = {
+			Colour = Info
 		}
 	},
 	List = {
@@ -209,7 +228,16 @@ local Skin = {
 	},
 	Menu = {
 		Default = {
-			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+			Colour = DarkButton
+		}
+	},
+	Modal = {
+		Default = {
+			BoxShadow = {
+				BlurRadius = 8,
+				Colour = Colour( 0, 0, 0, 0.75 )
+			},
+			Colour = WindowBackground
 		}
 	},
 	Notification = {
@@ -287,13 +315,55 @@ local Skin = {
 			HandleColour = OrangeButtonHighlight,
 			LineColour = OrangeButtonHighlight,
 			TextColour = BrightText,
-			LineHeightMultiplier = 0.15,
+			LineThicknessMultiplier = 0.15,
 			States = {
 				Disabled = {
 					DarkLineColour = SGUI.ColourWithAlpha( SliderDarkLineColour, 0.5 ),
 					HandleColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.2 ),
 					LineColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.2 ),
 					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
+				}
+			}
+		},
+		HuePicker = {
+			DarkLineVisible = false,
+			LineTexture = "ui/newMenu/hueRange.dds",
+			LineThicknessMultiplier = 0.75,
+			HandleColour = Colour( 0.2, 0.2, 0.2, 1 ),
+			LineColour = Colour( 1, 1, 1, 1 )
+		},
+		RedPicker = {
+			HandleColour = BrightText,
+			LineColour = Colour( 1, 0, 0 )
+		},
+		GreenPicker = {
+			HandleColour = BrightText,
+			LineColour = Colour( 0, 1, 0 )
+		},
+		BluePicker = {
+			HandleColour = BrightText,
+			LineColour = Colour( 0, 0.3, 1 )
+		}
+	},
+	Switch = {
+		Default = {
+			ActiveBackgroundColour = SuccessButton,
+			InactiveBackgroundColour = DarkButton,
+			KnobColour = Colour( 0.4, 0.4, 0.4, 1 ),
+			BorderRadii = {
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY
+			},
+			States = {
+				Disabled = {
+					ActiveBackgroundColour = SGUI.ColourWithAlpha( SuccessButton, 0.5 ),
+					InactiveBackgroundColour = SGUI.ColourWithAlpha( DarkButton, 0.5 ),
+					KnobColour = Colour( 0.4, 0.4, 0.4, 0.5 )
+				},
+				Active = {
+					KnobColour = Colour( 1, 1, 1, 1 )
 				}
 			}
 		}
@@ -315,10 +385,34 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = WindowBackground,
 			InactiveCol = DarkButton,
-			TextColour = BrightText,
+			TextColour = MutedText,
 			States = {
 				Highlighted = {
-					InactiveCol = Colour( 0.95, 0.95, 0.95, 1 )
+					InactiveCol = Colour( 0.95, 0.95, 0.95, 1 ),
+					TextColour = BrightText
+				},
+				Selected = {
+					TextColour = BrightText
+				}
+			}
+		},
+		VerticalCompact = {
+			Font = Fonts.kAgencyFB_Small,
+			ActiveCol = OrangeButtonHighlight,
+			InactiveCol = DarkButton,
+			TextColour = MutedText,
+			States = {
+				Highlighted = {
+					InactiveCol = Colour( 0.95, 0.95, 0.95, 1 ),
+					TextColour = BrightText,
+					States = {
+						Selected = {
+							TextColour = White
+						}
+					}
+				},
+				Selected = {
+					TextColour = White
 				}
 			}
 		},
@@ -326,10 +420,14 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = HorizontalTabBackground,
 			InactiveCol = DarkButton,
-			TextColour = BrightText,
+			TextColour = MutedText,
 			States = {
 				Highlighted = {
-					InactiveCol = Colour( 0.875, 0.875, 0.875, 1 )
+					InactiveCol = Colour( 0.875, 0.875, 0.875, 1 ),
+					TextColour = BrightText
+				},
+				Selected = {
+					TextColour = BrightText
 				}
 			}
 		}
@@ -367,6 +465,10 @@ local Skin = {
 			Colour = DarkButton
 		}
 	}
+}
+
+Skin.RichTextEntry = {
+	Default = Skin.TextEntry.Default
 }
 
 SGUI.SkinManager:RegisterSkin( "Default - Light", Skin )

@@ -645,7 +645,7 @@ function Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, Differ
 	return Value
 end
 
-do
+if not Predict then
 	--[[
 		Event hooks.
 	]]
@@ -720,7 +720,7 @@ do
 end
 
 do
-	local Environment = Server or Client
+	local Environment = Server or Client or Predict
 	local OriginalHookNWMessage = Environment.HookNetworkMessage
 
 	local function CallEventIfHooked( Event, Name, Arg )
@@ -753,6 +753,16 @@ do
 
 		return OriginalRegisterNetworkMessage( Name )
 	end
+end
+
+if Predict then
+	Hook.CallAfterFileLoad( "lua/Player.lua", function()
+		SetupClassHook( "Player", "OnProcessMove", "OnProcessMove", "PassivePre", { OverrideWithoutWarning = true } )
+	end )
+	Hook.CallAfterFileLoad( "lua/Spectator.lua", function()
+		SetupClassHook( "Spectator", "OnProcessMove", "OnProcessMove", "PassivePre", { OverrideWithoutWarning = true } )
+	end )
+	return
 end
 
 -- Note that it's important to override the initial registration, rather than re-register the message, as the

@@ -6,7 +6,7 @@ local SGUI = Shine.GUI
 
 local Image = {}
 
-SGUI.AddBoundProperty( Image, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( Image, "Colour", "self:SetBackgroundColour" )
 
 function Image:Initialise()
 	self.BaseClass.Initialise( self )

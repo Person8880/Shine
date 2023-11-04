@@ -2,6 +2,30 @@
 	Misc. stuff...
 ]]
 
+do
+	local HookNetworkMessage
+	if Server then
+		HookNetworkMessage = Server.HookNetworkMessage
+	elseif Client then
+		HookNetworkMessage = Client.HookNetworkMessage
+	elseif Predict then
+		HookNetworkMessage = Predict.HookNetworkMessage
+	end
+
+	local NetworkMessageErrorHandler = Shine.BuildErrorHandler( "Network message callback error" )
+
+	--[[
+		Hooks a network message and catches any errors thrown by the callback, allowing them to be reported.
+	]]
+	function Shine.HookNetworkMessage( Name, Callback )
+		return HookNetworkMessage( Name, function( ... )
+			xpcall( Callback, NetworkMessageErrorHandler, ... )
+		end )
+	end
+end
+
+if Predict then return end
+
 Shine.NotificationType = table.AsEnum( { "INFO", "WARNING", "ERROR" }, function( Index ) return Index end )
 
 Shared.RegisterNetworkMessage( "Shine_ClientConfirmConnect", {} )
@@ -12,20 +36,6 @@ do
 	-- Use the real thing, don't rely on a global other mods want to change which then breaks us...
 	function Shine.SendNetworkMessage( ... )
 		return SendNetMessage( ... )
-	end
-end
-
-do
-	local HookNetworkMessage = Server and Server.HookNetworkMessage or Client.HookNetworkMessage
-	local NetworkMessageErrorHandler = Shine.BuildErrorHandler( "Network message callback error" )
-
-	--[[
-		Hooks a network message and catches any errors thrown by the callback, allowing them to be reported.
-	]]
-	function Shine.HookNetworkMessage( Name, Callback )
-		return HookNetworkMessage( Name, function( ... )
-			xpcall( Callback, NetworkMessageErrorHandler, ... )
-		end )
 	end
 end
 

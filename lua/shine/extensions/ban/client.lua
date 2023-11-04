@@ -2,6 +2,8 @@
 	Bans client.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local Plugin = ...
 
 Plugin.AdminTab = "Bans"
@@ -58,89 +60,154 @@ function Plugin:SetupAdminMenu()
 	local UnitVector = Units.UnitVector
 	local Auto = Units.Auto
 
-	local Window
 	local function OpenAddBanWindow( SteamIDToBan )
-		if SGUI.IsValid( Window ) then
-			SGUI:SetWindowFocus( Window )
-			if SteamIDToBan then
-				Window.IDEntry:SetText( SteamIDToBan )
-			end
+		local Font = {
+			Family = "kAgencyFB",
+			Size = HighResScaled( 27 )
+		}
 
-			return
-		end
-
-		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 16 ), HighResScaled( 32 ),
-				HighResScaled( 16 ), HighResScaled( 16 ) )
+		local Modal = SGUI:Create( "Modal" )
+		Modal.TitleBarHeight = HighResScaled( 28 )
+		Modal:AddTitleBar( self:GetPhrase( "ADD_BAN_TITLE" ), Font )
+		local Elements = SGUI:BuildTree( {
+			Parent = Modal,
+			{
+				Class = "Label",
+				Props = {
+					DebugName = "AdminMenuAddBanLabel",
+					Text = "NS2ID:",
+					AutoFont = Font,
+					Margin = Spacing( 0, HighResScaled( 4 ), 0, HighResScaled( 5 ) )
+				}
+			},
+			{
+				Class = "Horizontal",
+				Type = "Layout",
+				Props = {
+					AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
+					Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) ),
+					Fill = false
+				},
+				Children = {
+					{
+						ID = "IDEntry",
+						Class = "TextEntry",
+						Props = {
+							DebugName = "AdminMenuAddBanIDEntry",
+							Fill = true,
+							AutoFont = Font,
+							Numeric = true,
+							Text = SteamIDToBan,
+							StyleName = "InputGroupStart"
+						}
+					},
+					{
+						ID = "MenuButton",
+						Class = "Button",
+						Props = {
+							AutoFont = {
+								Family = "Ionicons",
+								Size = HighResScaled( 29 )
+							},
+							AutoSize = UnitVector( HighResScaled( 32 ), HighResScaled( 32 ) ),
+							Text = SGUI.Icons.Ionicons.ArrowDownB,
+							Tooltip = self:GetPhrase( "SELECT_PLAYER" ),
+							StyleName = "InputGroupEnd"
+						}
+					}
+				}
+			},
+			{
+				Class = "Label",
+				Props = {
+					AutoFont = Font,
+					DebugName = "AdminMenuAddBanDurationLabel",
+					Text = self:GetPhrase( "DURATION_LABEL" ),
+					Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) )
+				}
+			},
+			{
+				ID = "DurationEntry",
+				Class = "TextEntry",
+				Props = {
+					AutoFont = Font,
+					AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
+					CharPattern = "[%w%.%-]",
+					DebugName = "AdminMenuAddBanDurationEntry",
+					Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) )
+				}
+			},
+			{
+				ID = "DurationValueLabel",
+				Class = "Label",
+				Props = {
+					AutoEllipsis = true,
+					AutoFont = Font,
+					AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto.INSTANCE ),
+					DebugName = "AdminMenuAddBanDurationValueLabel",
+					Text = self:GetPhrase( "DURATION_HINT" ),
+					Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) )
+				}
+			},
+			{
+				Class = "Label",
+				Props = {
+					AutoFont = Font,
+					DebugName = "AdminMenuAddBanReasonLabel",
+					Text = 	self:GetPhrase( "REASON" ),
+					Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) )
+				}
+			},
+			{
+				ID = "ReasonEntry",
+				Class = "TextEntry",
+				Props = {
+					AutoFont = Font,
+					AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
+					DebugName = "AdminMenuAddBanReasonEntry",
+				}
+			},
+			{
+				ID = "AddBanButton",
+				Class = "Button",
+				Props = {
+					AutoFont = Font,
+					AutoSize = UnitVector( Units.Max( Auto.INSTANCE, HighResScaled( 128 ) ), HighResScaled( 32 ) ),
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					DebugName = "AdminMenuAddBanConfirmButton",
+					StyleName = "SuccessButton",
+					Text = self:GetPhrase( "ADD_BAN" ),
+					Margin = Spacing( 0, HighResScaled( 8 ), 0, 0 )
+				}
+			}
 		} )
 
-		local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+		Modal.Layout:SetPadding(
+			Spacing( HighResScaled( 16 ), HighResScaled( 4 ), HighResScaled( 16 ), HighResScaled( 8 ) )
+		)
+		Modal:SetSize( Vector2( HighResScaled( 400 ):GetValue(), Modal:GetContentSizeForAxis( 2 ) ) )
 
-		Window = SGUI:Create( "Panel" )
-		Window:SetDebugName( "AdminMenuAddBanWindow" )
-		Window:SetAnchor( "CentreMiddle" )
-		Window:SetSize( Vector2( HighResScaled( 400 ):GetValue(), HighResScaled( 328 ):GetValue() ) )
-		Window:SetPos( -Window:GetSize() * 0.5 )
-		Window.TitleBarHeight = HighResScaled( 28 ):GetValue()
-		Window:AddTitleBar( self:GetPhrase( "ADD_BAN_TITLE" ), Font, Scale )
-		Window:SetDraggable( true )
+		local AdminMenuWindow = Shine.AdminMenu.Window
+		Modal:SetPos( AdminMenuWindow:GetScreenPos() + AdminMenuWindow:GetSize() * 0.5 - Modal:GetSize() * 0.5 )
+		Modal:SetDraggable( true )
+		Modal:PopUp( AdminMenuWindow )
 
-		function Window.CloseButton.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
-			Window:Destroy()
-			Window = nil
-		end
+		Shine.AdminMenu:AttachModal( Modal )
 
-		Shine.AdminMenu:DestroyOnClose( Window )
+		local DurationEntry = Elements.DurationEntry
+		local IDEntry = Elements.IDEntry
+		local ReasonEntry = Elements.ReasonEntry
 
-		Window:SetLayout( Layout )
-
-		local DurationEntry
-		local ReasonEntry
-
-		local IDLabel = SGUI:Create( "Label", Window )
-		IDLabel:SetDebugName( "AdminMenuAddBanLabel" )
-		IDLabel:SetText( "NS2ID:" )
-		IDLabel:SetFontScale( Font, Scale )
-		IDLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
-		Layout:AddElement( IDLabel )
-
-		local SearchLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-			AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
-			Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) ),
-			Fill = false
-		} )
-
-		local IDEntry = SGUI:Create( "TextEntry", Window )
-		IDEntry:SetDebugName( "AdminMenuAddBanIDEntry" )
-		IDEntry:SetFill( true )
-		IDEntry:SetFontScale( Font, Scale )
-		IDEntry:SetNumeric( true )
-		if SteamIDToBan then
-			IDEntry:SetText( SteamIDToBan )
-		end
 		function IDEntry:OnTab()
 			self:LoseFocus()
 
 			DurationEntry:RequestFocus()
 		end
-		Window.IDEntry = IDEntry
-
-		SearchLayout:AddElement( IDEntry )
 
 		local GetEnts = Shared.GetEntitiesWithClassname
 		local IterateEntList = ientitylist
 
-		local MenuButton = SGUI:Create( "Button", Window )
-		MenuButton:SetDebugName( "AdminMenuAddBanIDMenuButton" )
-		MenuButton:SetAutoSize( UnitVector( HighResScaled( 32 ), HighResScaled( 32 ) ) )
-		MenuButton:SetText( SGUI.Icons.Ionicons.ArrowDownB )
-		MenuButton:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 29 ) )
-		MenuButton:SetTooltip( self:GetPhrase( "SELECT_PLAYER" ) )
-
-		SearchLayout:AddElement( MenuButton )
-		Layout:AddElement( SearchLayout )
-
+		local MenuButton = Elements.MenuButton
 		MenuButton:SetOpenMenuOnClick( function( Button )
 			return {
 				MenuPos = Vector2( -IDEntry:GetSize().x, Button:GetSize().y ),
@@ -163,40 +230,19 @@ function Plugin:SetupAdminMenu()
 								IDEntry:SetText( SteamID )
 							end
 							Menu:Destroy()
-						end ):SetFontScale( Font, Scale )
+						end ):SetAutoFont( Font )
 					end
 				end
 			}
 		end )
 
-		local DurationLabel = SGUI:Create( "Label", Window )
-		DurationLabel:SetDebugName( "AdminMenuAddBanDurationLabel" )
-		DurationLabel:SetText( self:GetPhrase( "DURATION_LABEL" ) )
-		DurationLabel:SetFontScale( Font, Scale )
-		DurationLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
-
-		Layout:AddElement( DurationLabel )
-
-		DurationEntry = SGUI:Create( "TextEntry", Window )
-		DurationEntry:SetDebugName( "AdminMenuAddBanDurationEntry" )
-		DurationEntry:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ) )
-		DurationEntry:SetFontScale( Font, Scale )
-		DurationEntry:SetCharPattern( "[%w%.%-]" )
-		DurationEntry:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
 		function DurationEntry:OnTab()
 			self:LoseFocus()
 
 			ReasonEntry:RequestFocus()
 		end
-		Window.DurationEntry = DurationEntry
 
-		Layout:AddElement( DurationEntry )
-
-		local DurationValueLabel = SGUI:Create( "Label", Window )
-		DurationValueLabel:SetDebugName( "AdminMenuAddBanDurationValueLabel" )
-		DurationValueLabel:SetText( self:GetPhrase( "DURATION_HINT" )  )
-		DurationValueLabel:SetFontScale( Font, Scale )
-		DurationValueLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
+		local DurationValueLabel = Elements.DurationValueLabel
 		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
 		function DurationEntry.OnTextChanged( TextEntry, OldValue, NewValue )
 			if NewValue == "" then
@@ -215,46 +261,13 @@ function Plugin:SetupAdminMenu()
 			} ) )
 		end
 
-		Layout:AddElement( DurationValueLabel )
-
-		local ReasonLabel = SGUI:Create( "Label", Window )
-		ReasonLabel:SetDebugName( "AdminMenuAddBanReasonLabel" )
-		ReasonLabel:SetText( self:GetPhrase( "REASON" ) )
-		ReasonLabel:SetFontScale( Font, Scale )
-		ReasonLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
-
-		Layout:AddElement( ReasonLabel )
-
-		ReasonEntry = SGUI:Create( "TextEntry", Window )
-		ReasonEntry:SetDebugName( "AdminMenuAddBanReasonEntry" )
-		ReasonEntry:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ) )
-		ReasonEntry:SetFontScale( Font, Scale )
 		function ReasonEntry:OnTab()
 			self:LoseFocus()
 
 			IDEntry:RequestFocus()
 		end
-		Window.ReasonEntry = ReasonEntry
 
-		Layout:AddElement( ReasonEntry )
-
-		local AddBan = SGUI:Create( "Button", Window )
-		AddBan:SetDebugName( "AdminMenuAddBanConfirmButton" )
-		local ButtonLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-			Fill = false,
-			AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto( AddBan ) + HighResScaled( 8 ) ),
-			Alignment = SGUI.LayoutAlignment.MAX
-		} )
-
-		AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
-		AddBan:SetStyleName( "SuccessButton" )
-		AddBan:SetFontScale( Font, Scale )
-		AddBan:SetAlignment( SGUI.LayoutAlignment.CENTRE )
-		AddBan:SetAutoSize( UnitVector( Units.Max( Auto( AddBan ), HighResScaled( 128 ) ), Percentage.ONE_HUNDRED ) )
-
-		ButtonLayout:AddElement( AddBan )
-		Layout:AddElement( ButtonLayout )
-
+		local AddBan = Elements.AddBanButton
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
 			if not ID then return end
@@ -264,17 +277,25 @@ function Plugin:SetupAdminMenu()
 
 			local Reason = ReasonEntry:GetText()
 
-			Shine.AdminMenu:RunCommand( self.BanCommand, StringFormat( "%s %s %s",
-				ID, Duration, Reason ) )
+			Shine.AdminMenu:RunCommand( self.BanCommand, StringFormat( "%s %s %s", ID, Duration, Reason ) )
 
-			Shine.AdminMenu:DontDestroyOnClose( Window )
-			Window:Destroy()
-			Window = nil
+			Modal:Close()
 
 			if self.BanMenuOpen then
 				self:RequestBanPage( self.CurrentPage )
 			end
 		end
+
+		Binder()
+			:FromElement( IDEntry, "Text" )
+			:FromElement( DurationEntry, "Text" )
+			:ToElement( AddBan, "Enabled" )
+			:WithReducer( function( State, Text )
+				return State and Text ~= ""
+			end )
+			:WithInitialState( true ):BindProperties()
+
+		return Elements
 	end
 
 	self:AddAdminMenuCommand(
@@ -283,8 +304,8 @@ function Plugin:SetupAdminMenu()
 		self.BanCommand,
 		false,
 		function( Button, IDs )
-			OpenAddBanWindow( IDs[ 1 ] )
-			Window.DurationEntry:RequestFocus()
+			local Elements = OpenAddBanWindow( IDs[ 1 ] )
+			Elements.DurationEntry:RequestFocus()
 		end,
 		self:GetPhrase( "BAN_TIP" )
 	)
@@ -490,8 +511,8 @@ function Plugin:SetupAdminMenu()
 			AddBan:SetAlignment( SGUI.LayoutAlignment.MAX )
 			AddBan:SetIcon( SGUI.Icons.Ionicons.Plus )
 			function AddBan.DoClick()
-				OpenAddBanWindow()
-				Window.IDEntry:RequestFocus()
+				local Elements = OpenAddBanWindow()
+				Elements.IDEntry:RequestFocus()
 			end
 
 			ControlLayout:AddElement( AddBan )

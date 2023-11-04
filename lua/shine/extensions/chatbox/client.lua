@@ -6,6 +6,7 @@
 
 local Binder = require "shine/lib/gui/binding/binder"
 local ChatAPI = require "shine/core/shared/chat/chat_api"
+local TextElement = require "shine/lib/gui/richtext/elements/text"
 
 local Shine = Shine
 
@@ -25,6 +26,9 @@ local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
 local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
+local StringGSub = string.gsub
+local StringMatch = string.match
+local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
@@ -33,6 +37,7 @@ local TableEmpty = table.Empty
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
 local TableShallowMerge = table.ShallowMerge
+local TableSlice = table.Slice
 local type = type
 
 local Plugin = Shine.Plugin( ... )
@@ -47,6 +52,7 @@ Plugin.FontSizeMode = table.AsEnum{
 }
 
 Plugin.DefaultConfig = {
+	AutoCompleteEmoji = true, -- Should the emoji auto-completion popup be displayed?
 	AutoClose = true, -- Should the chatbox close after sending a message?
 	DeleteOnClose = true, -- Should whatever's entered be deleted if the chatbox is closed before sending?
 	MessageMemory = 50, -- How many messages should the chatbox store before removing old ones?
@@ -184,6 +190,10 @@ local Skin = {
 			TextColour = Colours.ModeText,
 			IconShadow = false,
 			TextShadow = false
+		},
+		EmojiButton = {
+			ActiveCol = Colours.Dark,
+			InactiveCol = Colours.Highlight
 		}
 	},
 	CheckBoxWithLabel = {
@@ -225,6 +235,30 @@ local Skin = {
 					Text = SGUI.Icons.Ionicons.AndroidPeople
 				}
 			}
+		},
+		EmojiCategoryHeader = {
+			Shadow = false
+		}
+	},
+	EmojiAutoComplete = {
+		Default = {
+			Colour = SGUI.ColourWithAlpha( Colours.Dark, 1 )
+		}
+	},
+	EmojiAutoCompleteEntry = {
+		Default = {
+			ActiveCol = SGUI.ColourWithAlpha( Colours.Highlight, 1 ),
+			InactiveCol = SGUI.ColourWithAlpha( Colours.Dark, 1 ),
+			TextColour = Colours.ModeText,
+			AutoFont = {
+				Family = "kAgencyFB",
+				Size = Units.GUIScaled( 27 )
+			}
+		}
+	},
+	EmojiPicker = {
+		Default = {
+			Colour = SGUI.ColourWithAlpha( Colours.Highlight, 1 )
 		}
 	},
 	Panel = {
@@ -307,7 +341,8 @@ local Skin = {
 			BorderColour = Colours.Dark,
 			BorderSize = Vector2( 0, 0 ),
 			TextColour = Colour( 1, 1, 1, 1 ),
-			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 )
+			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 ),
+			BorderRadii = false
 		}
 	}
 }
@@ -317,8 +352,17 @@ function Plugin:OnFirstThink()
 	-- default skin.
 	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
 	TableShallowMerge( DefaultSkin, Skin )
+
 	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
+
+	Skin.TextEntry.Default.HighlightColour = DefaultSkin.TextEntry.Default.HighlightColour
+	Skin.RichTextEntry = {
+		Default = Skin.TextEntry.Default
+	}
+
 	TableShallowMerge( DefaultSkin.Button, Skin.Button )
+
+	Skin.TextEntry.EmojiPickerSearch = DefaultSkin.TextEntry.Default
 
 	TableShallowMerge( DefaultSkin.CheckBox, Skin.CheckBox )
 	TableShallowMerge( DefaultSkin.CheckBox.Default, Skin.CheckBox.Default )
@@ -443,6 +487,9 @@ function Plugin:RefreshFontScale( Font, Scale )
 		self.ChatBox:InvalidateLayout( true )
 	end
 end
+
+local EmojiAutoComplete = require "shine/extensions/chatbox/ui/emoji_autocomplete"
+local EmojiPicker = require "shine/extensions/chatbox/ui/emoji_picker"
 
 --[[
 	Creates the chatbox UI elements.
@@ -590,6 +637,50 @@ function Plugin:CreateChatbox()
 	Box.BufferAmount = PaddingUnit:GetValue()
 	ChatBoxLayout:AddElement( Box )
 
+	local EmojiAutoCompletePattern = ":([^:%s]-)$"
+	local function InsertEmojiFromCompletion( EmojiName )
+		local CaretPos = self.TextEntry:GetCaretPos()
+		local TextBehindCaret = self.TextEntry:GetTextBetween( 1, CaretPos )
+
+		local EmojiMatch = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
+		if not EmojiMatch or not StringStartsWith( EmojiName, EmojiMatch ) then return end
+
+		local TextToInsert = StringSub( EmojiName, #EmojiMatch + 1 )..":"
+
+		-- Avoid inserting a second space if there's one in front of the caret already.
+		local TextAfterCaret = self.TextEntry:GetTextBetween( CaretPos + 1, CaretPos + 1 )
+		if StringSub( TextAfterCaret, 1, 1 ) ~= " " then
+			TextToInsert = TextToInsert.." "
+		end
+
+		self.TextEntry:InsertTextAtCaret( TextToInsert )
+
+		Hook.Broadcast( "OnChatBoxEmojiSelected", self, EmojiName )
+	end
+
+	do
+		local AutoCompleteSize = Units.Integer( Units.GUIScaled( 40 ) )
+		local PaddingSize = Units.Integer( Units.GUIScaled( 4 ) )
+
+		local EmojiAutoCompletePanel = SGUI:Create( EmojiAutoComplete, Box )
+		EmojiAutoCompletePanel:SetupFromTable{
+			PositionType = SGUI.PositionType.ABSOLUTE,
+			TopOffset = Units.Percentage.ONE_HUNDRED - AutoCompleteSize,
+			AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, AutoCompleteSize ),
+			IsVisible = false,
+			Padding = Units.Spacing( PaddingSize, 0, PaddingSize, 0 )
+		}
+		EmojiAutoCompletePanel:AddPropertyChangeListener( "SelectedEmojiName", function( Panel, EmojiName )
+			if not EmojiName then return end
+
+			Panel:SetIsVisible( false )
+
+			InsertEmojiFromCompletion( EmojiName )
+		end )
+
+		self.EmojiAutoComplete = EmojiAutoCompletePanel
+	end
+
 	self.ChatBox = Box
 
 	local SettingsButtonSize = LayoutData.Sizes.SettingsButton
@@ -646,7 +737,7 @@ function Plugin:CreateChatbox()
 	end
 
 	-- Where messages are entered.
-	local TextEntry = SGUI:Create( "TextEntry", Border )
+	local TextEntry = SGUI:Create( "RichTextEntry", Border )
 	TextEntry:SetupFromTable{
 		DebugName = "ChatBoxTextEntry",
 		Text = "",
@@ -654,7 +745,13 @@ function Plugin:CreateChatbox()
 		Skin = Skin,
 		Font = Font,
 		Fill = true,
-		MaxLength = kMaxChatLength
+		MaxLength = kMaxChatLength,
+		TextParser = function( Text )
+			local ParsedText = Hook.Call( "ParseChatBoxText", self, Text )
+			if IsType( ParsedText, "table" ) then return ParsedText end
+
+			return { TextElement( Text ) }
+		end
 	}
 	if self.TextScale ~= 1 then
 		TextEntry:SetTextScale( self.TextScale )
@@ -665,6 +762,16 @@ function Plugin:CreateChatbox()
 	-- Send the message when the client presses enter.
 	function TextEntry:OnEnter()
 		local Text = self:GetText()
+		if SGUI.IsValid( Plugin.EmojiAutoComplete ) and Plugin.EmojiAutoComplete:GetIsVisible() then
+			local EmojiName = Plugin.EmojiAutoComplete:ResolveSelectedEmojiName()
+			if EmojiName then
+				InsertEmojiFromCompletion( EmojiName )
+			end
+
+			Plugin.EmojiAutoComplete:SetIsVisible( false )
+
+			return
+		end
 
 		-- Don't go sending blank messages.
 		if #Text > 0 and StringContainsNonUTF8Whitespace( Text ) then
@@ -704,11 +811,53 @@ function Plugin:CreateChatbox()
 		end
 	end
 
+	local OldOnTab = TextEntry.OnTab
+	function TextEntry.OnTab( TextEntry )
+		if SGUI.IsValid( self.EmojiAutoComplete ) and self.EmojiAutoComplete:GetIsVisible() then
+			self.EmojiAutoComplete:MoveSelection( SGUI:IsShiftDown() and -1 or 1 )
+			return
+		end
+
+		return OldOnTab( TextEntry )
+	end
+
 	function TextEntry.OnUnhandledKey( TextEntry, Key, Down )
 		if Down and ( Key == InputKey.Down or Key == InputKey.Up ) then
 			self:ScrollAutoComplete( Key == InputKey.Down and 1 or -1 )
 		end
 	end
+
+	local function UpdateEmojiAutoComplete( TextEntry )
+		if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
+
+		if not self.Config.AutoCompleteEmoji then
+			self.EmojiAutoComplete:SetIsVisible( false )
+			return
+		end
+
+		local TextBehindCaret = TextEntry:GetTextBetween( 1, TextEntry:GetCaretPos() )
+		local Emoji = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
+		if not Emoji or #Emoji < 2 then
+			self.EmojiAutoComplete:SetIsVisible( false )
+			return
+		end
+
+		local Results = Hook.Call( "OnChatBoxEmojiAutoComplete", self, Emoji )
+		if not IsType( Results, "table" ) or #Results == 0 then
+			self.EmojiAutoComplete:SetIsVisible( false )
+			return
+		end
+
+		self.EmojiAutoComplete:SetIsVisible( true )
+		self.EmojiAutoComplete:SetEmoji( TableSlice( Results, 1, 5 ) )
+		self.EmojiAutoComplete:SetSelectedIndex( 1 )
+		self.EmojiAutoComplete:SetSelectedEmojiName( nil )
+	end
+
+	self.UpdateEmojiAutoComplete = UpdateEmojiAutoComplete
+
+	-- Watch all text changes for emoji auto-complete to ensure it's hidden if the text is wiped.
+	TextEntry:AddPropertyChangeListener( "Text", UpdateEmojiAutoComplete )
 
 	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
 		self:AutoCompleteCommand( NewText )
@@ -717,6 +866,116 @@ function Plugin:CreateChatbox()
 	self:SetupAutoComplete( TextEntry )
 
 	self.TextEntry = TextEntry
+
+	do
+		local EmojiButton = SGUI:Create( "Button", Border )
+		EmojiButton:SetupFromTable{
+			DebugName = "ChatBoxEmojiButton",
+			Text = SGUI.Icons.Ionicons.HappyOutline,
+			Skin = Skin,
+			Font = IconFont,
+			AutoSize = UnitVector(
+				TextEntryRowHeight,
+				Percentage.ONE_HUNDRED
+			),
+			Margin = Spacing( PaddingUnit, 0, 0, 0 ),
+			TextInheritsParentAlpha = false,
+			Tooltip = self:GetPhrase( "EMOJI_PICKER_TOOLTIP" ),
+			IsVisible = false
+		}
+		EmojiButton:SetTextScale( IconScale )
+		TextEntryLayout:AddElement( EmojiButton )
+
+		self.EmojiButton = EmojiButton
+
+		local function OnEmojiPicked( Picker, EmojiName )
+			if not EmojiName then return end
+
+			local FormatString = ":%s:"
+			local TextAfterCaret = self.TextEntry:GetTextBetween( self.TextEntry:GetCaretPos() + 1 )
+			if StringSub( TextAfterCaret, 1, 1 ) ~= " " then
+				FormatString = ":%s: "
+			end
+
+			self.TextEntry:InsertTextAtCaret( StringFormat( FormatString, EmojiName ), {
+				-- Only insert full emoji, if there's no more room, don't insert anything.
+				SkipIfAnyCharBlocked = true
+			} )
+
+			Hook.Broadcast( "OnChatBoxEmojiSelected", self, EmojiName )
+		end
+
+		local RemovalFrameNumber
+		local function OnPickerRemoved()
+			RemovalFrameNumber = SGUI.FrameNumber()
+
+			self.TextEntry:RequestFocus()
+
+			if not SGUI.IsValid( EmojiButton ) then return end
+
+			EmojiButton:RemoveStylingState( "Open" )
+		end
+
+		self.OpenEmojiPicker = function( self, SkipAnim )
+			if SGUI.IsValid( self.EmojiPicker ) then return end
+
+			local EmojiList = Hook.Call( "OnChatBoxEmojiPickerOpen", self )
+			if not IsType( EmojiList, "table" ) or #EmojiList == 0 then return end
+
+			EmojiButton:AddStylingState( "Open" )
+
+			local Picker = SGUI:Create( EmojiPicker )
+			Picker:SetPadding( Spacing.Uniform( Units.GUIScaled( 4 ) ) )
+
+			local PickerSize = Vector2(
+				Units.GUIScaled( 8 + 48 * 6 ):GetValue(),
+				Units.GUIScaled( 8 + 48 * 6 + 4 + 32 ):GetValue()
+			)
+			Picker:SetSize( PickerSize )
+
+			local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
+			local Pos = EmojiButton:GetScreenPos() + Vector2( EmojiButton:GetSize().x, 0 )
+			if Pos.x + PickerSize.x > ScreenWidth then
+				Pos.x = ScreenWidth - PickerSize.x
+			end
+			if Pos.y + PickerSize.y > ScreenHeight then
+				Pos.y = ScreenHeight - PickerSize.y
+			end
+			Picker:SetPos( Pos )
+			Picker:SetSkin( Skin )
+			Picker:InvalidateLayout( true )
+			Picker:SetSearchPlaceholderText( self:GetPhrase( "EMOJI_SEARCH_PLACEHOLDER_TEXT" ) )
+			Picker:SetEmojiList( EmojiList )
+			Picker.Elements.SearchInput:RequestFocus()
+			Picker:CallOnRemove( OnPickerRemoved )
+
+			if not SkipAnim then
+				Picker:ApplyTransition( {
+					Type = "Move",
+					StartValue = Pos - Vector2( EmojiButton:GetSize().x, 0 ),
+					EndValue = Pos,
+					Duration = 0.15
+				} )
+				Picker:ApplyTransition( {
+					Type = "AlphaMultiplier",
+					StartValue = 0,
+					EndValue = 1,
+					Duration = 0.15
+				} )
+			end
+
+			Picker.OnEmojiSelected = OnEmojiPicked
+
+			self.EmojiPicker = Picker
+		end
+
+		function EmojiButton.DoClick()
+			-- Don't re-open if the button was the cause of the old picker's removal.
+			if RemovalFrameNumber == EmojiButton:GetLastMouseDownFrameNumber() then return end
+
+			self:OpenEmojiPicker()
+		end
+	end
 
 	local SettingsButton = SGUI:Create( "Button", Border )
 	SettingsButton:SetupFromTable{
@@ -809,6 +1068,11 @@ do
 	end
 
 	local SETTINGS_PADDING_AMOUNT = 5
+	local function GetPaddingOffset( self )
+		-- This is summed in this manner to match the rounding applied to the two padding values used on the panel.
+		-- Using just one scaled unit here wouldn't necessarily match, as each padding direction is rounded separately.
+		return Scaled( SETTINGS_PADDING_AMOUNT, self.UIScale.x ) + Scaled( SETTINGS_PADDING_AMOUNT * 4, self.UIScale.x )
+	end
 
 	local function GetCheckBoxSize( self )
 		return UnitVector( Scaled( 28, self.ScalarScale ), Scaled( 28, self.ScalarScale ) )
@@ -821,14 +1085,14 @@ do
 
 	local function GetDropdownSize( self )
 		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ) - GetPaddingOffset( self ),
 			Scaled( 28, self.UIScale.y )
 		)
 	end
 
 	local function GetButtonSize( self )
 		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ) - GetPaddingOffset( self ),
 			Scaled( 32, self.UIScale.y )
 		)
 	end
@@ -1062,6 +1326,34 @@ do
 			end
 		},
 		{
+			ID = "AutoCompleteEmojiCheckBox",
+			Type = "CheckBox",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "AutoCompleteEmoji", Value ) then return end
+				if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
+
+				if Value then
+					self.UpdateEmojiAutoComplete( self.TextEntry )
+				else
+					self.EmojiAutoComplete:SetIsVisible( false )
+				end
+			end,
+			Values = function( self )
+				return self.Config.AutoCompleteEmoji, "AUTO_COMPLETE_EMOJI"
+			end,
+			Bindings = {
+				{
+					From = {
+						Element = "EmojiButton",
+						Property = "IsVisible"
+					},
+					To = {
+						Property = "IsVisible"
+					}
+				}
+			}
+		},
+		{
 			ID = "MessageMemoryLabel",
 			Type = "Label",
 			Values = { "MESSAGE_MEMORY" }
@@ -1229,7 +1521,7 @@ do
 			if Bindings then
 				for j = 1, #Bindings do
 					local Binding = Bindings[ j ]
-					local FromElement = ElementsByID[ Binding.From.Element ]
+					local FromElement = ElementsByID[ Binding.From.Element ] or self[ Binding.From.Element ]
 					if FromElement then
 						Binder():FromElement( FromElement, Binding.From.Property )
 							:ToElement( ElementsByID[ Data.ID ], Binding.To.Property, Binding.To )
@@ -1720,8 +2012,8 @@ do
 		local Elements = Layout.Elements
 
 		local ResultPanelPadding = self.MainPanel.Layout:GetComputedPadding()
-		local XPadding = ResultPanelPadding[ 1 ] + ResultPanelPadding[ 3 ]
-		local YPadding = ResultPanelPadding[ 2 ] + ResultPanelPadding[ 4 ]
+		local XPadding = ResultPanelPadding[ 5 ]
+		local YPadding = ResultPanelPadding[ 6 ]
 		local Size = Vector2( self.MainPanel:GetSize().x, YPadding )
 
 		for i = 1, Max( #Results, #Elements ) do
@@ -1947,6 +2239,11 @@ function Plugin:CloseChat( ForcePreserveText )
 	self.MainPanel:SetIsVisible( false )
 	self.GUIChat:SetIsVisible( true )
 
+	if SGUI.IsValid( self.EmojiPicker ) then
+		self.EmojiPicker:Close()
+		self.EmojiPicker = nil
+	end
+
 	SGUI:EnableMouse( false )
 
 	if not ForcePreserveText and self.Config.DeleteOnClose then
@@ -1966,6 +2263,7 @@ function Plugin:OnCommanderLogin()
 	if not self.Visible then return end
 
 	local WasTeamChat = self.TeamChat
+	local EmojiPickerState = SGUI.IsValid( self.EmojiPicker ) and self.EmojiPicker:GetState()
 
 	-- Ensure existing text entry state is preserved.
 	self:CloseChat( true )
@@ -1973,6 +2271,14 @@ function Plugin:OnCommanderLogin()
 	self:SimpleTimer( 0, function()
 		-- Wait a frame to allow the commander mouse to be pushed/popped first.
 		self:StartChat( WasTeamChat )
+
+		if EmojiPickerState then
+			self:OpenEmojiPicker( true )
+
+			if SGUI.IsValid( self.EmojiPicker ) then
+				self.EmojiPicker:RestoreFromState( EmojiPickerState )
+			end
+		end
 	end )
 end
 
@@ -2014,6 +2320,7 @@ do
 		self.TextEntryIcon:SetStylingState( StyleState or "AllChat" )
 
 		self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
+		self.EmojiButton:SetIsVisible( Hook.Call( "IsChatEmojiAvailable" ) == true )
 
 		SGUI:EnableMouse( true )
 

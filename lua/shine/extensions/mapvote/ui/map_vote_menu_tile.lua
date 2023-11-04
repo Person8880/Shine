@@ -65,7 +65,6 @@ function MapTile:Initialise()
 					Props = {
 						Fill = true,
 						IsVisible = false,
-						InheritsParentAlpha = true,
 						StyleName = "PreviewImage"
 					},
 					Bindings = {
@@ -118,7 +117,7 @@ function MapTile:Initialise()
 
 								-- Fade the image in after loading.
 								self.PreviewImage:ApplyTransition( {
-									Type = "Alpha",
+									Type = "AlphaMultiplier",
 									StartValue = 0,
 									EndValue = 1,
 									Duration = 0.3
@@ -162,6 +161,7 @@ function MapTile:Initialise()
 			}
 		},
 		{
+			ID = "HeaderRow",
 			Class = "Row",
 			Props = {
 				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
@@ -218,11 +218,7 @@ function MapTile:Initialise()
 						StyleName = "ShowOverviewButton",
 						AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
 						DoClick = function()
-							if SGUI.IsValid( self.OverviewImageContainer ) then
-								self:HideOverviewImage()
-							else
-								self:ShowOverviewImage()
-							end
+							self:ToggleOverviewImage()
 						end,
 						Tooltip = Locale:GetPhrase( "mapvote", "TOGGLE_MAP_OVERVIEW_TOOLTIP" )
 					},
@@ -241,6 +237,7 @@ function MapTile:Initialise()
 			}
 		},
 		{
+			ID = "FooterRow",
 			Class = "Row",
 			Props = {
 				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
@@ -319,6 +316,31 @@ function MapTile:Initialise()
 		} ):BindProperty()
 end
 
+-- This is used externally to render a map preview without any interactive elements.
+function MapTile:EnableDisplayMode()
+	self:SetHighlightOnMouseOver( false )
+	self:SetHighlighted( true, true )
+	self:SetEnabled( false )
+	self.InheritsParentAlpha = true
+	self:SetPropagateAlphaInheritance( true )
+
+	self:AddStylingState( "Display" )
+
+	self.DisplayMode = true
+
+	if SGUI.IsValid( self.HeaderRow ) then
+		self.HeaderRow:Destroy()
+		self.HeaderRow = nil
+	end
+
+	if SGUI.IsValid( self.FooterRow ) then
+		self.FooterRow:Destroy()
+		self.FooterRow = nil
+	end
+
+	self.DoClick = function() end
+end
+
 function MapTile:SetHighlighted( Highlighted, SkipAnim )
 	self.Highlighted = Highlighted
 	self:OnPropertyChanged( "Highlighted", Highlighted )
@@ -352,7 +374,6 @@ function MapTile:SetPreviewOverlayTexture( Overlay )
 		OverlayElement = SGUI:Create( "Image", self.PreviewImage )
 		OverlayElement:SetPositionType( SGUI.PositionType.ABSOLUTE )
 		OverlayElement:SetFill( true )
-		OverlayElement:SetInheritsParentAlpha( true )
 		self.PreviewImageOverlay = OverlayElement
 	end
 
@@ -371,9 +392,8 @@ function MapTile:ShowOverviewImage()
 						ID = "OverviewImageContainer",
 						Class = "Column",
 						Props = {
-							Colour = Colour( 0, 0, 0, 0 ),
-							Fill = true,
-							InheritsParentAlpha = true
+							Colour = Colour( 0, 0, 0, 0.5 ),
+							Fill = true
 						},
 						Children = {
 							{
@@ -393,13 +413,16 @@ function MapTile:ShowOverviewImage()
 								Class = "Image",
 								Props = {
 									IsVisible = false,
-									Colour = Colour( 1, 1, 1, 0 ),
+									AlphaMultiplier = 0,
+									Colour = Colour( 1, 1, 1, 1 ),
 									Texture = self.OverviewTexture,
 									Alignment = SGUI.LayoutAlignment.CENTRE,
 									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 									AspectRatio = 1,
-									AutoSize = Units.UnitVector( Units.Percentage.SEVENTY_FIVE, 0 ),
-									InheritsParentAlpha = true
+									AutoSize = Units.UnitVector(
+										Units.Percentage[ self.DisplayMode and "ONE_HUNDRED" or "SEVENTY_FIVE" ],
+										0
+									)
 								}
 							}
 						}
@@ -409,8 +432,8 @@ function MapTile:ShowOverviewImage()
 		} ), self )
 		self.PreviewImage:InvalidateLayout( true )
 		self.OverviewImageContainer:ApplyTransition( {
-			Type = "Alpha",
-			EndValue = 0.5,
+			Type = "AlphaMultiplier",
+			EndValue = 1,
 			Duration = 0.3
 		} )
 	end
@@ -424,8 +447,8 @@ function MapTile:ShowOverviewImage()
 		self.OverviewImage:SetTexture( self.OverviewTexture )
 		self.OverviewImage:SetIsVisible( true )
 		self.OverviewImage:ApplyTransition( {
-			Type = "Alpha",
-			EndValue = 2,
+			Type = "AlphaMultiplier",
+			EndValue = 1,
 			Duration = 0.3
 		} )
 		return
@@ -452,7 +475,7 @@ end
 function MapTile:HideOverviewImage()
 	if SGUI.IsValid( self.OverviewImageContainer ) then
 		self.OverviewImageContainer:ApplyTransition( {
-			Type = "Alpha",
+			Type = "AlphaMultiplier",
 			EndValue = 0,
 			Duration = 0.3,
 			Callback = function()
@@ -465,6 +488,17 @@ function MapTile:HideOverviewImage()
 			end
 		} )
 	end
+end
+
+function MapTile:ToggleOverviewImage()
+	if SGUI.IsValid( self.OverviewImageContainer ) then
+		self:HideOverviewImage()
+		return false
+	end
+
+	self:ShowOverviewImage()
+
+	return true
 end
 
 function MapTile:DoClick()

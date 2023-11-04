@@ -1,0 +1,106 @@
+{
+	"Categories": [
+		{
+			"Name": "Smilies",
+			"Translations": {
+				"enGB": "Smilies"
+			}
+		},
+		{
+			"Name": "Emoticons",
+			"Translations": {
+				"enGB": "Emoticons"
+			}
+		},
+		{
+			"Name": "Hands",
+			"Translations": {
+				"enGB": "Hands"
+			}
+		},
+		{
+			"Name": "Uncategorised",
+			"Translations": {
+				"enGB": "Uncategorised"
+			}
+		}
+	],
+	"Emoji": [
+		{
+			"Folder": "ui/shine/emoji/smilies/face-smiling/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-affection/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-tongue/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-hand/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-neutral-skeptical/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-sleepy/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-unwell/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-hat/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-glasses/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-concerned/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-negative/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/face-costume/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/cat-face/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/monkey-face/*.tga",
+			"Category": "Smilies"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/emotion/*.tga",
+			"Category": "Emoticons"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hand-fingers-open/*.tga",
+			"Category": "Hands"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hand-fingers-partial/*.tga",
+			"Category": "Hands"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hand-fingers-closed/*.tga",
+			"Category": "Hands"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hands/*.tga",
+			"Category": "Hands"
+		}
+	]
+}

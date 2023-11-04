@@ -2,19 +2,19 @@
 	Provides a way to filter out player names.
 ]]
 
+local JSON = require "shine/lib/json"
+
 local Shine = Shine
 
-local Clamp = math.Clamp
-local Floor = math.floor
-local Max = math.max
+local IsType = Shine.IsType
 local pcall = pcall
 local Random = math.random
-local StringChar = string.char
 local StringFind = string.find
 local StringFormat = string.format
 local StringGSub = string.gsub
 local StringLower = string.lower
-local TableConcat = table.concat
+local TableAsSet = table.AsSet
+local TableShallowCopy = table.ShallowCopy
 local tostring = tostring
 
 local Plugin = Shine.Plugin( ... )
@@ -30,7 +30,7 @@ Plugin.FilterActionType = table.AsEnum{
 }
 
 Plugin.DefaultConfig = {
-	ForcedNames = {},
+	ForcedNames = JSON.Object(),
 	Filters = {},
 	FilterAction = Plugin.FilterActionType.RENAME,
 	BanLength = 1440
@@ -40,10 +40,26 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 do
+	local DeleteIfFieldInvalid = { DeleteIfFieldInvalid = true }
+
 	local Validator = Shine.Validator()
 	Validator:AddFieldRule( "BanLength", Validator.Min( 0 ) )
-	Validator:AddFieldRule(	"FilterAction",
-		Validator.InEnum( Plugin.FilterActionType, Plugin.FilterActionType.RENAME ) )
+	Validator:AddFieldRule(
+		"FilterAction",
+		Validator.InEnum( Plugin.FilterActionType, Plugin.FilterActionType.RENAME )
+	)
+	Validator:AddFieldRule( "ForcedNames", Validator.AllKeyValuesSatisfy( Validator.IsType( "string" ) ) )
+	Validator:AddFieldRule( "Filters", Validator.AllValuesSatisfy(
+		Validator.ValidateField( "Pattern", Validator.IsType( "string" ), DeleteIfFieldInvalid ),
+		Validator.ValidateField(
+			"Excluded",
+			Validator.IsAnyType( { "string", "number", "table", "nil" } )
+		),
+		Validator.ValidateField(
+			"Excluded",
+			Validator.IfType( "table", Validator.AllValuesSatisfy( Validator.IsAnyType( { "string", "number" } ) ) )
+		)
+	) )
 	Plugin.ConfigValidator = Validator
 end
 
@@ -57,9 +73,34 @@ Plugin.ConfigMigrationSteps = {
 	}
 }
 
+function Plugin:CompileFilters()
+	local Filters = self.Config.Filters
+	local CompiledFilters = {}
+
+	for i = 1, #Filters do
+		local Filter = Filters[ i ]
+		local CompiledFilter = TableShallowCopy( Filter )
+
+		-- Turn the exclusions into a lookup table.
+		local Excluded = CompiledFilter.Excluded
+		if IsType( Excluded, "table" ) then
+			if #Excluded > 0 then
+				CompiledFilter.Excluded = TableAsSet( Shine.Stream.Of( Excluded ):Map( tostring ):AsTable() )
+			end
+		else
+			CompiledFilter.Excluded = { [ tostring( Excluded ) ] = true }
+		end
+
+		CompiledFilters[ i ] = CompiledFilter
+	end
+
+	return CompiledFilters
+end
+
 function Plugin:Initialise()
 	self:CreateCommands()
 	self.InvalidFilters = {}
+	self.Filters = self:CompileFilters()
 
 	self.Enabled = true
 
@@ -76,8 +117,7 @@ function Plugin:CreateCommands()
 
 		TargetPlayer:SetName( NewName )
 
-		Shine:AdminPrint( nil, "%s was renamed to '%s' by %s.", true,
-			TargetInfo, NewName, CallingInfo )
+		Shine:AdminPrint( nil, "%s was renamed to '%s' by %s.", true, TargetInfo, NewName, CallingInfo )
 	end )
 	:AddParam{ Type = "client" }
 	:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
@@ -95,8 +135,14 @@ function Plugin:CreateCommands()
 			end
 		end
 
-		Shine:AdminPrint( nil, "%s was permanently renamed to '%s' by %s", true,
-			ID, NewName, Shine.GetClientInfo( Client ) )
+		Shine:AdminPrint(
+			nil,
+			"%s was permanently renamed to '%s' by %s",
+			true,
+			ID,
+			NewName,
+			Shine.GetClientInfo( Client )
+		)
 	end )
 	:AddParam{ Type = "steamid" }
 	:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
@@ -119,7 +165,7 @@ function Plugin:CreateCommands()
 end
 
 Plugin.FilterActions = {
-	[ Plugin.FilterActionType.RENAME ] = function( self, Player, OldName )
+	[ Plugin.FilterActionType.RENAME ] = function( self, Player, FilteredName )
 		local Client = Player:GetClient()
 		if not Client then return "NSPlayer"..Random( 1e3, 1e5 ) end
 
@@ -127,23 +173,21 @@ Plugin.FilterActions = {
 		local SteamID = Client:GetUserId()
 		local UserName = "NSPlayer"..SteamID
 
-		self:Print( "Client %s[%s] was renamed from filtered name: %s", true,
-			UserName, SteamID, OldName )
+		self:Print( "Client %s[%s] was renamed from filtered name: %s", true, UserName, SteamID, FilteredName )
 
 		return UserName
 	end,
 
-	[ Plugin.FilterActionType.KICK ] = function( self, Player, OldName )
+	[ Plugin.FilterActionType.KICK ] = function( self, Player, FilteredName )
 		local Client = Player:GetClient()
 		if not Client then return end
 
-		self:Print( "Client %s[%s] was kicked for filtered name.", true,
-			OldName, Client:GetUserId() )
+		self:Print( "Client %s[%s] was kicked for filtered name.", true, FilteredName, Client:GetUserId() )
 
 		Server.DisconnectClient( Client, "Kicked for filtered name." )
 	end,
 
-	[ Plugin.FilterActionType.BAN ] = function( self, Player, OldName )
+	[ Plugin.FilterActionType.BAN ] = function( self, Player, FilteredName )
 		local Client = Player:GetClient()
 		if not Client then return end
 
@@ -152,17 +196,19 @@ Plugin.FilterActions = {
 		local BanReason
 
 		if Enabled then
-			self:Print( "Client %s[%s] was banned for filtered name.", true,
-				OldName, ID )
+			self:Print( "Client %s[%s] was banned for filtered name.", true, FilteredName, ID )
 
 			local Duration = self.Config.BanLength * 60
-			BanPlugin:AddBan( ID, OldName, Duration, "NameFilter", 0,
-				"Player used filtered name." )
+			BanPlugin:AddBan( ID, FilteredName, Duration, "NameFilter", 0, "Player used filtered name." )
 
 			BanReason = StringFormat( "Banned %s for filtered name.", string.TimeToDuration( Duration ) )
 		else
-			self:Print( "Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).",
-				true, OldName, ID )
+			self:Print(
+				"Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).",
+				true,
+				FilteredName,
+				ID
+			)
 
 			BanReason = "Kicked for filtered name."
 		end
@@ -177,10 +223,8 @@ Plugin.FilterActions = {
 	Excluded should be an NS2ID which identifies the player who owns this name pattern.
 ]]
 function Plugin:ProcessFilter( Player, Name, Filter )
-	if not Filter.Pattern then return end
-
 	local Client = Player:GetClient()
-	if Client and tostring( Client:GetUserId() ) == tostring( Filter.Excluded ) then return end
+	if Client and Filter.Excluded and Filter.Excluded[ tostring( Client:GetUserId() ) ] then return end
 
 	local LoweredName = StringLower( Name )
 	local Pattern = StringLower( Filter.Pattern )
@@ -229,7 +273,7 @@ function Plugin:CheckPlayerName( Player, Name, OldName )
 	local ForcedName = self:EnforceName( Client )
 	if ForcedName then return ForcedName end
 
-	local Filters = self.Config.Filters
+	local Filters = self.Filters
 	for i = 1, #Filters do
 		if not self.InvalidFilters[ Filters[ i ] ] then
 			local Filtered, NewName = self:ProcessFilter( Player, Name, Filters[ i ] )

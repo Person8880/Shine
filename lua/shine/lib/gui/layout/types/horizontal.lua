@@ -9,20 +9,20 @@ local Vector2 = Vector2
 local Horizontal = {}
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
-
-function Horizontal:GetStartPos( Pos, Size, Padding, Alignment, Context )
-	if Alignment == LayoutAlignment.CENTRE then
-		local X = Pos.x + Size.x * 0.5 - Context.CentreAlignedSize * 0.5
-		local Y = Pos.y + Padding[ 2 ]
-
-		return X, Y
+local StartPositionGetters = {
+	[ LayoutAlignment.MIN ] = function( Pos, Size, Context )
+		return Context.MinX, Context.MinY
+	end,
+	[ LayoutAlignment.CENTRE ] = function( Pos, Size, Context )
+		return Pos.x + Size.x * 0.5 - Context.CentreAlignedSize * 0.5, Context.MinY
+	end,
+	[ LayoutAlignment.MAX ] = function( Pos, Size, Context )
+		return Context.MaxX, Context.MinY
 	end
+}
 
-	local IsMin = Alignment == LayoutAlignment.MIN
-	local X = IsMin and ( Pos.x + Padding[ 1 ] ) or ( Pos.x + Size.x - Padding[ 3 ] )
-	local Y = Pos.y + Padding[ 2 ]
-
-	return X, Y
+function Horizontal:GetStartPos( Pos, Size, Alignment, Context )
+	return StartPositionGetters[ Alignment ]( Pos, Size, Context )
 end
 
 function Horizontal:GetFillSize( Size )
@@ -34,19 +34,28 @@ function Horizontal:GetMinMargin( Margin )
 end
 
 function Horizontal:GetMarginSize( Margin )
-	return Margin[ 1 ] + Margin[ 3 ]
+	return Margin[ 5 ]
 end
 
-function Horizontal:SetElementPos( Element, X, Y, Margin, LayoutSize )
-	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
-	if CrossAxisAlignment == LayoutAlignment.CENTRE then
-		Y = Y + LayoutSize.y * 0.5 - Element:GetSize().y * 0.5
-	elseif CrossAxisAlignment == LayoutAlignment.MAX then
-		Y = Y + LayoutSize.y - Element:GetSize().y
+local CrossAxisAlignmentGetters = {
+	[ LayoutAlignment.MIN ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y
+	end,
+	[ LayoutAlignment.CENTRE ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y + LayoutSize.y * 0.5 - ElementSize.y * 0.5
+	end,
+	[ LayoutAlignment.MAX ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y + LayoutSize.y - ElementSize.y
 	end
+}
+
+function Horizontal:SetElementPos( Element, X, Y, Margin, LayoutSize, ElementSize )
+	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
+
+	X, Y = CrossAxisAlignmentGetters[ CrossAxisAlignment ]( Element, X, Y, LayoutSize, ElementSize )
 
 	local LayoutOffset = Element:GetLayoutOffset()
-	Element:SetPos( Vector2( X + LayoutOffset.x, Y + Margin[ 2 ] + LayoutOffset.y ) )
+	Element:SetLayoutPos( Vector2( X + LayoutOffset.x, Y + Margin[ 2 ] + LayoutOffset.y ) )
 end
 
 function Horizontal:GetMaxMargin( Margin )
@@ -57,30 +66,20 @@ function Horizontal:GetElementSizeOffset( Size )
 	return Size.x, 0
 end
 
-function Horizontal:GetFillElementWidth( Element, Width, FillSizePerElement )
+function Horizontal:GetCrossAxisSize( Size )
+	return Size.y
+end
+
+function Horizontal:GetFillElementWidth( Element, FillSizePerElement, ParentWidth, ParentHeight )
 	return FillSizePerElement
 end
 
-function Horizontal:GetFillElementHeight( Element, Height, FillSizePerElement )
-	return Height
+function Horizontal:GetFillElementHeight( Element, FillSizePerElement, ParentHeight, ParentWidth )
+	return Element:GetComputedSize( 2, ParentHeight, ParentWidth )
 end
 
-function Horizontal:GetFillElementSize( Element, Width, Height, FillSizePerElement )
-	return Vector2( FillSizePerElement, Height )
-end
-
-local ContentSizes = {
-	function( self )
-		-- This only makes sense if all elements are using the same alignment.
-		-- Otherwise the size returned will be larger than the actual size consumed.
-		return self.BaseClass.GetContentSizeForAxis( self, 1 )
-	end,
-	function( self )
-		return self:GetMaxSizeAlongAxis( 2 )
-	end
-}
-function Horizontal:GetContentSizeForAxis( Axis )
-	return ContentSizes[ Axis ]( self )
+function Horizontal:ApplyContentSize( MainAxisSize, CrossAxisSize )
+	return MainAxisSize, CrossAxisSize
 end
 
 Shine.GUI.Layout:RegisterType( "Horizontal", Horizontal, "Directional" )

@@ -9,7 +9,7 @@ local ControlMeta = SGUI.BaseControl
 local Set = Shine.Set
 
 local assert = assert
-local Clock = Shared.GetSystemTimeReal
+local Clock = SGUI.GetTime
 local IsType = Shine.IsType
 local IsGUIItemValid = debug.isvalid
 local Max = math.max
@@ -19,6 +19,7 @@ local StringFormat = string.format
 local TableNew = require "table.new"
 local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
+local Vector = Vector
 
 local Map = Shine.Map
 local Multimap = Shine.Multimap
@@ -28,16 +29,39 @@ local UnorderedMap = Shine.UnorderedMap
 local SetterKeys = SGUI.SetterKeys
 
 SGUI.AddBoundProperty( ControlMeta, "BlendTechnique", "Background" )
-SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
-SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", {
+	"Background",
+	function( self, InheritsParentAlpha )
+		if self.GUIItems then
+			for Item in self.GUIItems:Iterate() do
+				Item:SetInheritsParentAlpha( InheritsParentAlpha )
+			end
+		end
+	end
+} )
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", {
+	"Background",
+	function( self, InheritsParentScaling )
+		if self.GUIItems then
+			for Item in self.GUIItems:Iterate() do
+				Item:SetInheritsParentScaling( InheritsParentScaling )
+			end
+		end
+	end
+} )
 SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
+SGUI.AddProperty( ControlMeta, "AlphaMultiplier", 1 )
+SGUI.AddProperty( ControlMeta, "CroppingBounds" )
 SGUI.AddProperty( ControlMeta, "DebugName", "Unnamed" )
+SGUI.AddProperty( ControlMeta, "PropagateAlphaInheritance", false )
+SGUI.AddProperty( ControlMeta, "PropagateScaleInheritance", false )
 SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
+SGUI.AddProperty( ControlMeta, "TargetAlpha", 1 )
 
 function ControlMeta:__tostring()
 	local NumChildren = self.Children and self.Children:GetCount() or 0
@@ -57,11 +81,18 @@ end
 ]]
 function ControlMeta:Initialise()
 	self.UseScheme = true
+	self.InheritsParentAlpha = false
+	self.PropagateAlphaInheritance = false
+	self.InheritsParentScaling = false
+	self.PropagateScaleInheritance = false
 	self.PropagateSkin = true
 	self.Stencilled = false
 
 	self.MouseHasEntered = false
 	self.MouseStateIsInvalid = false
+
+	self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithoutAlphaModifier
+	self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierOrInheritance
 end
 
 --[[
@@ -70,6 +101,11 @@ end
 	The only time you need to override it is if you have more than a background object.
 ]]
 function ControlMeta:Cleanup()
+	if SGUI.IsValid( self.Tooltip ) then
+		self.Tooltip:Destroy()
+		self.Tooltip = nil
+	end
+
 	if self.Parent then return end
 
 	if self.GUIItems then
@@ -118,6 +154,15 @@ function ControlMeta:DeleteOnRemove( Control )
 	local Table = self.__DeleteOnRemove
 
 	Table[ #Table + 1 ] = Control
+end
+
+--[[
+	Stops a control being destroyed when this one is.
+]]
+function ControlMeta:ResetDeleteOnRemove( Control )
+	if not self.__DeleteOnRemove then return end
+
+	TableRemoveByValue( self.__DeleteOnRemove, Control )
 end
 
 --[[
@@ -264,6 +309,14 @@ function ControlMeta:RemoveStylingStates( Names )
 	end
 end
 
+function ControlMeta:SetStylingStateActive( Name, Active )
+	if Active then
+		self:AddStylingState( Name )
+	else
+		self:RemoveStylingState( Name )
+	end
+end
+
 -- Deprecated single-style state accessor. Controls may have more than one active state.
 function ControlMeta:GetStylingState()
 	return self.StylingStates and self.StylingStates:AsList()[ 1 ]
@@ -284,6 +337,12 @@ do
 	end
 end
 
+--[[
+	Sets the style name for the given control.
+
+	This can be either a string to use a single style name, or an array of names. When specifying multiple style names,
+	properties from latter names override the values from those before and the default style.
+]]
 function ControlMeta:SetStyleName( Name )
 	if self.StyleName == Name then return end
 
@@ -392,6 +451,7 @@ function ControlMeta:SetParent( Control, Element )
 		self.ParentElement = nil
 		self.TopLevelWindow = nil
 		self:SetStencilled( false )
+		self:InvalidateCroppingState()
 		return
 	end
 
@@ -403,6 +463,17 @@ function ControlMeta:SetParent( Control, Element )
 	if Control.Stencilled then
 		self:SetInheritsParentStencilSettings( true )
 	end
+
+	if Control.PropagateAlphaInheritance then
+		self:SetInheritsParentAlpha( Control:GetInheritsParentAlpha() )
+		self:SetPropagateAlphaInheritance( true )
+	end
+
+	if Control.PropagateScaleInheritance then
+		self:SetInheritsParentScaling( Control:GetInheritsParentScaling() )
+		self:SetPropagateScaleInheritance( true )
+	end
+
 	if Control.PropagateSkin then
 		self:SetSkin( Control.Skin )
 	end
@@ -420,6 +491,8 @@ function ControlMeta:SetParent( Control, Element )
 	if ParentElementChanged and Element and self.Background then
 		Element:AddChild( self.Background )
 	end
+
+	self:InvalidateCroppingState()
 end
 
 function ControlMeta:SetTopLevelWindow( Window )
@@ -499,8 +572,6 @@ end
 	Add a GUIItem as a child.
 ]]
 function ControlMeta:AddChild( GUIItem )
-	if not self.Background then return end
-
 	self.Background:AddChild( GUIItem )
 end
 
@@ -519,9 +590,14 @@ function ControlMeta:MakeGUIItem( Type )
 	Item:SetOptionFlag( GUIItem.CorrectScaling )
 	Item:SetOptionFlag( GUIItem.CorrectRotationOffset )
 	if self.Stencilled then
-		-- This element is currently under the effect of a stencil, so inherit
-		-- settings.
+		-- This element is currently under the effect of a stencil, so inherit settings.
 		Item:SetInheritsParentStencilSettings( true )
+	end
+	if self.InheritsParentAlpha then
+		Item:SetInheritsParentAlpha( true )
+	end
+	if self.InheritsParentScaling then
+		Item:SetInheritsParentScaling( true )
 	end
 
 	self.GUIItems = self.GUIItems or Shine.Map()
@@ -550,9 +626,11 @@ function ControlMeta:DestroyGUIItem( Item )
 end
 
 function ControlMeta:SetLayer( Layer )
-	if not self.Background then return end
-
 	self.Background:SetLayer( Layer )
+end
+
+function ControlMeta:GetLayer()
+	return self.Background:GetLayer()
 end
 
 local function IsDescendantOf( Child, Ancestor )
@@ -570,6 +648,64 @@ function ControlMeta:SetCropToBounds( CropToBounds )
 	else
 		self.Background:ClearCropRectangle()
 	end
+end
+
+function ControlMeta:IsCroppedByParent()
+	local IsCropped = self.__IsCroppedByParent
+
+	if IsCropped == nil then
+		-- Lazy-evaluate whether the control is actually visible based on the parent's known cropping bounds.
+		local ParentCroppingBounds = self.Parent and self.Parent:GetCroppingBounds()
+		if ParentCroppingBounds then
+			local ParentPos = self.Parent:GetScreenPos()
+			local Mins = ParentPos + ParentCroppingBounds[ 1 ]
+			local Maxs = ParentPos + ParentCroppingBounds[ 2 ]
+			local SelfPos = self:GetScreenPos()
+			local Size = self:GetSize()
+
+			-- Simple bounding box check in screen space.
+			IsCropped = SelfPos.x + Size.x < Mins.x or
+				SelfPos.x > Maxs.x or
+				SelfPos.y + Size.y < Mins.y or
+				SelfPos.y > Maxs.y
+		else
+			IsCropped = false
+		end
+
+		-- Remember this until the cropping is updated or this control's position changes.
+		self.__IsCroppedByParent = IsCropped
+		self:OnPropertyChanged( "CroppedByParent", IsCropped )
+	end
+
+	return IsCropped
+end
+
+function ControlMeta:InvalidateCroppingState()
+	-- Forget the cached cropping state, will be re-evaluated on the next call to IsCroppedByParent().
+	self.__IsCroppedByParent = nil
+end
+
+function ControlMeta:SetCroppingBounds( Mins, Maxs )
+	if not Mins then
+		if not self.CroppingBounds then return false end
+
+		self.CroppingBounds = nil
+	else
+		if self.CroppingBounds and Mins == self.CroppingBounds[ 1 ] and Maxs == self.CroppingBounds[ 2 ] then
+			return false
+		end
+
+		self.CroppingBounds = self.CroppingBounds or {}
+		self.CroppingBounds[ 1 ] = Mins
+		self.CroppingBounds[ 2 ] = Maxs
+	end
+
+	self:OnPropertyChanged( "CroppingBounds", self.CroppingBounds )
+	-- Notify all children that they need to re-evaluate their cropping.
+	-- Controls that call this method must also ensure they fire this event when their scrolling box moves.
+	self:CallOnChildren( "InvalidateCroppingState" )
+
+	return true
 end
 
 --[[
@@ -641,6 +777,35 @@ function ControlMeta:PropagateStencilSettings( Stencilled )
 	end
 end
 
+do
+	local SetInheritsParentScaling = ControlMeta.SetInheritsParentScaling
+	function ControlMeta:SetInheritsParentScaling( InheritsParentScaling )
+		if not SetInheritsParentScaling( self, InheritsParentScaling ) then return false end
+
+		if self.PropagateScaleInheritance and self.Children then
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentScaling( InheritsParentScaling )
+			end
+		end
+
+		return true
+	end
+
+	local SetPropagateScaleInheritance = ControlMeta.SetPropagateScaleInheritance
+	function ControlMeta:SetPropagateScaleInheritance( PropagateScaleInheritance )
+		if not SetPropagateScaleInheritance( self, PropagateScaleInheritance ) then return false end
+
+		if PropagateScaleInheritance and self.Children then
+			local InheritsParentScaling = self:GetInheritsParentScaling()
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentScaling( InheritsParentScaling )
+				Child:SetPropagateScaleInheritance( true )
+			end
+		end
+
+		return true
+	end
+end
 --[[
 	Determines if the given control should use the global skin.
 ]]
@@ -679,7 +844,6 @@ do
 		Sets visibility of the control.
 	]]
 	function ControlMeta:SetIsVisible( IsVisible )
-		if not self.Background then return end
 		if self.Background.GetIsVisible and self.Background:GetIsVisible() == IsVisible then return end
 
 		local WasEffectivelyVisible = true
@@ -719,26 +883,37 @@ do
 end
 
 --[[
-	Computes the actual visibility state of the object, based on
-	whether it is set to be invisible, or otherwise if it has a parent
-	that is not visible.
+	Computes the actual visibility state of the object, based on whether it is set to be invisible, or otherwise if it
+	has a parent that is not visible.
 ]]
 function ControlMeta:ComputeVisibility()
-	local OurVis = self:GetIsVisible()
-	if not OurVis then return false end
+	if not self:GetIsVisible() then return false end
 
 	if SGUI.IsValid( self.Parent ) then
 		return self.Parent:ComputeVisibility()
 	end
 
-	return OurVis
+	return true
+end
+
+--[[
+	Computes the visibility of the element, taking into account cropping higher up in the tree as well as the visibility
+	flag.
+]]
+function ControlMeta:ComputeVisibilityWithCropping()
+	if not self:GetIsVisible() or self:IsCroppedByParent() then return false end
+
+	if SGUI.IsValid( self.Parent ) then
+		return self.Parent:ComputeVisibilityWithCropping()
+	end
+
+	return true
 end
 
 --[[
 	Override this for stencilled stuff.
 ]]
 function ControlMeta:GetIsVisible()
-	if not self.Background then return false end
 	return self.Background:GetIsVisible()
 end
 
@@ -750,10 +925,27 @@ SGUI.AddProperty( ControlMeta, "Layout" )
 ]]
 function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	self.Layout = Layout
+
 	if Layout then
 		Layout:SetParent( self )
+		Layout.IsScrollable = self.IsScrollable
+
+		-- Make the element's content size reflect its layout's, as this is more accurate than manually summing/maxing
+		-- over each element (and avoids computing the same thing twice).
+		if self.GetContentSizeForAxis == ControlMeta.GetContentSizeForAxis then
+			self.GetContentSizeForAxis = self.GetContentSizeForAxisFromLayout
+		end
+	elseif self.GetContentSizeForAxis == ControlMeta.GetContentSizeForAxisFromLayout then
+		self.GetContentSizeForAxis = nil
 	end
+
 	self:InvalidateLayout( not DeferInvalidation )
+end
+
+local function GetLayoutSpacing( self )
+	local Margin = self.Layout:GetComputedMargin()
+	local Padding = self:GetComputedPadding()
+	return Margin, Padding
 end
 
 --[[
@@ -766,14 +958,13 @@ function ControlMeta:PerformLayout()
 
 	if not self.Layout then return end
 
-	local Margin = self.Layout:GetComputedMargin()
-	local Padding = self:GetComputedPadding()
+	local Margin, Padding = GetLayoutSpacing( self )
 	local Size = self:GetSize()
 
 	self.Layout:SetPos( Vector2( Margin[ 1 ] + Padding[ 1 ], Margin[ 2 ] + Padding[ 2 ] ) )
 	self.Layout:SetSize( Vector2(
-		Max( Size.x - Margin[ 1 ] - Margin[ 3 ] - Padding[ 1 ] - Padding[ 3 ], 0 ),
-		Max( Size.y - Margin[ 2 ] - Margin[ 4 ] - Padding[ 2 ] - Padding[ 4 ], 0 )
+		Max( Size.x - Margin[ 5 ] - Padding[ 5 ], 0 ),
+		Max( Size.y - Margin[ 6 ] - Padding[ 6 ], 0 )
 	) )
 	self.Layout:InvalidateLayout( true )
 end
@@ -787,19 +978,23 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 	local Size = self:GetSize()
 	for i = 1, #Children do
 		local Child = Children[ i ]
-		local Pos = Child:ComputeAbsolutePosition( Size )
 
 		Child:PreComputeWidth()
 
-		local Width = Child:GetComputedSize( 1, Size.x )
+		local Width = Child:GetComputedSize( 1, Size.x, Size.y )
+
+		-- As in layouts, set the width upfront to avoid needing to auto-wrap twice.
+		local ChildSize = Vector2( Width, Child:GetSize().y )
+		Child:SetLayoutSize( ChildSize )
 
 		Child:PreComputeHeight( Width )
 
-		local ChildSize = Vector2( Width, Child:GetComputedSize( 2, Size.y ) )
+		ChildSize.y = Child:GetComputedSize( 2, Size.y, Size.x )
+		Child:SetLayoutSize( ChildSize )
 
-		Child:SetPos( Pos )
-		Child:SetSize( ChildSize )
-		Child:InvalidateLayout( true )
+		local Pos = Child:ComputeAbsolutePosition( Size )
+		Child:SetLayoutPos( Pos )
+		Child:HandleLayout( 0 )
 	end
 end
 
@@ -813,6 +1008,12 @@ function ControlMeta:InvalidateParent( Now )
 	if not self.Parent then return end
 
 	self.Parent:InvalidateLayout( Now )
+
+	if self.LayoutParent and self.LayoutParent ~= self.Parent.Layout then
+		-- If this is a child of a nested layout, mark the nested layout for invalidation too, otherwise it won't be
+		-- re-evaluated as part of the tree.
+		self.LayoutParent:InvalidateLayout( Now )
+	end
 end
 
 --[[
@@ -823,18 +1024,10 @@ end
 	single frame that all trigger layout invalidation.
 ]]
 function ControlMeta:InvalidateLayout( Now )
-	if Now then
-		self.LayoutIsInvalid = false
-		self:PerformLayout()
-
-		if self.Layout then
-			self.Layout:InvalidateLayout( true )
-		end
-
-		return
-	end
-
 	self.LayoutIsInvalid = true
+	if Now then
+		self:HandleLayout( 0, true )
+	end
 end
 
 do
@@ -845,20 +1038,39 @@ do
 	end
 end
 
+local function Get2DSize( self )
+	local Size = self.Background:GetSize()
+	-- Normalise the z-component to 0, this can be returned as 1 which breaks equality with Vector2...
+	Size.z = 0
+	return Size
+end
+
 --[[
 	Sets the size of the control (background), and invalidates the control's layout.
 ]]
 function ControlMeta:SetSize( SizeVec )
-	if not self.Background then return end
+	local OldSize = Get2DSize( self )
+	if OldSize == SizeVec then return false end
 
-	local OldSize = self.Background:GetSize()
-	if OldSize == SizeVec then return end
+	-- Apply the size values to a new vector to avoid the caller having a direct reference to the internal value.
+	OldSize.x = SizeVec.x
+	OldSize.y = SizeVec.y
+
+	self.Size = OldSize
 
 	self.Background:SetSize( SizeVec )
 	self:InvalidateLayout()
 	self:InvalidateMouseState()
 	self:OnPropertyChanged( "Size", SizeVec )
+
+	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
+		self:InvalidateCroppingState()
+	end
+
+	return true
 end
+
+ControlMeta.GetSize = Get2DSize
 
 --[[
 	A simple shortcut method for setting font and potentially scale
@@ -871,14 +1083,262 @@ function ControlMeta:SetFontScale( Font, Scale )
 	end
 end
 
-function ControlMeta:SetAlpha( Alpha )
+-- This can be overridden by controls that need to update their own items when their background alpha changes.
+function ControlMeta:ApplyCalculatedAlphaToBackground( Alpha )
 	local Colour = self.Background:GetColor()
 	Colour.a = Alpha
 	self.Background:SetColor( Colour )
 end
 
+function ControlMeta:SetAlpha( Alpha )
+	-- Remember this alpha value as the intended alpha for this control.
+	self:SetTargetAlpha( Alpha )
+	return self:ApplyCalculatedAlphaToBackground( self:CalculateAlpha( Alpha, self:GetParentTargetAlpha() ) )
+end
+
+function ControlMeta:SetBackgroundColour( Colour )
+	-- Remember the alpha value on the colour as the intended alpha for this control.
+	self:SetTargetAlpha( Colour.a )
+
+	-- Copy the colour and compute the actual alpha required to render with the desired alpha, based on inherited alpha.
+	self.Background:SetColor( self:ApplyCalculatedAlphaToColour( Colour, self:GetParentTargetAlpha() ) )
+end
+
 function ControlMeta:GetAlpha()
 	return self.Background:GetColor().a
+end
+
+do
+	function ControlMeta:ShouldAutoInheritAlpha()
+		return self.PropagateAlphaInheritance and self:GetInheritsParentAlpha()
+	end
+
+	function ControlMeta:OnAutoInheritAlphaChanged( IsAutoInherit )
+		-- To be overridden.
+	end
+
+	function ControlMeta:OnAlphaCalculationParametersChanged()
+		-- This branching isn't ideal, but it avoids runtime branching when colours are changed (especially useful during
+		-- easing).
+		local OldCalculateAlpha = self.CalculateAlpha
+		local IsInheriting = self:ShouldAutoInheritAlpha()
+		if self:GetAlphaMultiplier() == 1 then
+			if IsInheriting then
+				self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierWithInheritance
+				self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithAlphaModifier
+			else
+				self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierOrInheritance
+				self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithoutAlphaModifier
+			end
+		else
+			self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithAlphaModifier
+
+			if IsInheriting then
+				self.CalculateAlpha = self.CalculateAlphaWithMultiplierAndInheritance
+			else
+				self.CalculateAlpha = self.CalculateAlphaWithMultiplierWithoutInheritance
+			end
+		end
+		return OldCalculateAlpha ~= self.CalculateAlpha
+	end
+
+	local SetInheritsParentAlpha = ControlMeta.SetInheritsParentAlpha
+	function ControlMeta:SetInheritsParentAlpha( InheritsParentAlpha )
+		if not SetInheritsParentAlpha( self, InheritsParentAlpha ) then return false end
+
+		if self:OnAlphaCalculationParametersChanged() then
+			self:ApplyCalculatedAlphaToBackground(
+				self:CalculateAlpha( self:GetTargetAlpha(), self:GetParentTargetAlpha() )
+			)
+
+			-- This must have changed if the alpha calculation changed.
+			self:OnAutoInheritAlphaChanged( self:ShouldAutoInheritAlpha() )
+		end
+
+		if self.PropagateAlphaInheritance and self.Children then
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentAlpha( InheritsParentAlpha )
+			end
+		end
+
+		return true
+	end
+
+	local SetPropagateAlphaInheritance = ControlMeta.SetPropagateAlphaInheritance
+	function ControlMeta:SetPropagateAlphaInheritance( PropagateAlphaInheritance )
+		if not SetPropagateAlphaInheritance( self, PropagateAlphaInheritance ) then return false end
+
+		if self:OnAlphaCalculationParametersChanged() then
+			self:ApplyCalculatedAlphaToBackground(
+				self:CalculateAlpha( self:GetTargetAlpha(), self:GetParentTargetAlpha() )
+			)
+
+			-- This must have changed if the alpha calculation changed.
+			self:OnAutoInheritAlphaChanged( self:ShouldAutoInheritAlpha() )
+		end
+
+		if PropagateAlphaInheritance and self.Children then
+			local InheritsParentAlpha = self:GetInheritsParentAlpha()
+			-- Recurse the flag down the element tree, and ensure everything is inheriting alpha as expected.
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentAlpha( InheritsParentAlpha )
+				Child:SetPropagateAlphaInheritance( true )
+			end
+		end
+
+		return true
+	end
+
+	local SetAlphaMultiplier = ControlMeta.SetAlphaMultiplier
+	function ControlMeta:SetAlphaMultiplier( AlphaMultiplier )
+		local OldMultiplier = self:GetAlphaMultiplier()
+		if not SetAlphaMultiplier( self, AlphaMultiplier ) then return false end
+
+		if OldMultiplier == 1 or AlphaMultiplier == 1 then
+			self:OnAlphaCalculationParametersChanged()
+		end
+
+		-- Always re-apply the alpha as the multiplier affects it regardless of inheritance settings.
+		self:ApplyCalculatedAlphaToBackground(
+			self:CalculateAlpha( self:GetTargetAlpha(), self:GetParentTargetAlpha() )
+		)
+
+		return true
+	end
+
+	function ControlMeta:OnParentTargetAlphaChanged( ParentTargetAlpha )
+		-- When the parent's target alpha changes, the local alpha needs to be updated to compensate for it.
+		-- Note that this doesn't need to be done recursively, the assumption is always that the final value after
+		-- multiplying all parent alpha values together will equal the current control's target alpha, so as far as this
+		-- control's children are concerned, nothing has changed.
+		return self:ApplyCalculatedAlphaToBackground( self:CalculateAlpha( self:GetTargetAlpha(), ParentTargetAlpha ) )
+	end
+
+	--[[
+		This is called internally whenever the main colour for the control changes.
+
+		The GUIItem system in the game has the option to inherit alpha from parent items. This effectively works as
+		a chained multiplication:
+
+		RootAlpha * Child1Alpha * Child2Alpha * ...
+
+		Thus, if a control wishes to be opaque, but it also has translucent parent elements, simply setting the item's
+		colour would result in translucency instead of opaquness.
+
+		To compensate for this, each control tracks its target alpha value, that is, the alpha it wants to render with.
+		It uses this value to calculate the actual alpha value that, when multiplied by its parent's alpha, will produce
+		the intended alpha. Thankfully, the rendering system accepts alpha values > 1, and multiplies them properly.
+
+		For example, if a root element has alpha set to 0.5, but a child wants to be opaque, it needs the following
+		actual alpha value set on the GUIItem:
+
+		1 / 0.5 = 2.
+
+		This results in a multiplication of
+
+		0.5 * 2 = 1
+
+		for the item, which renders it as opaque despite its translucent parent item.
+
+		Note that only direct children of an element need to recompute their final alpha value when their parent alpha
+		changes, as each item need only compensate for its direct parent's alpha, as its parent is already compensating
+		for its parent and so on.
+	]]
+	local SetTargetAlpha = ControlMeta.SetTargetAlpha
+	function ControlMeta:SetTargetAlpha( TargetAlpha )
+		if not SetTargetAlpha( self, TargetAlpha ) then return false end
+
+		if self.PropagateAlphaInheritance and self.Children then
+			-- Notify all direct children of the change in our target alpha, each child will need to re-compute their
+			-- own final alpha value to compensate.
+			for Child in self.Children:Iterate() do
+				if Child:GetInheritsParentAlpha() then
+					Child:OnParentTargetAlphaChanged( TargetAlpha )
+				end
+			end
+		end
+
+		return true
+	end
+
+	function ControlMeta:GetParentTargetAlpha()
+		local Parent = self.Parent
+		if SGUI.IsValid( Parent ) then
+			return Parent:GetTargetAlpha()
+		end
+		-- Always 1 for root elements, nothing gets inherited here.
+		return 1
+	end
+
+	-- Reduce copying overhead by keeping a single colour object, values get copied by GUIItem:SetColor().
+	local ScratchColour = Colour( 0, 0, 0, 0 )
+
+	--[[
+		Applies the current alpha calculation to the given colour's alpha value, using the given parent alpha value.
+
+		If automatic alpha inheritance is enabled, then the resulting colour's alpha will compensate for the given
+		parent alpha value. Otherwise the alpha will just be multiplied by the control's current alpha multiplier.
+
+		This returns a copy of the given colour, the original colour is not modified. Note that this copy is intended
+		to be passed directly into GUIItem:SetColor() and may be modified by subsequent calls, so do not store it
+		without first copying it.
+	]]
+	function ControlMeta:ApplyCalculatedAlphaToColourWithAlphaModifier( Colour, ParentAlpha )
+		ScratchColour.r = Colour.r
+		ScratchColour.g = Colour.g
+		ScratchColour.b = Colour.b
+		ScratchColour.a = self:CalculateAlpha( Colour.a, ParentAlpha )
+		return ScratchColour
+	end
+
+	function ControlMeta:ApplyCalculatedAlphaToColourWithoutAlphaModifier( Colour, ParentAlpha )
+		-- Optimisation for the case where no alpha modifications are needed, just return the given colour as-is.
+		return Colour
+	end
+	ControlMeta.ApplyCalculatedAlphaToColour = ControlMeta.ApplyCalculatedAlphaToColourWithoutAlphaModifier
+
+	--[[
+		Applies alpha compensation to the given colour for a child GUIItem of the control.
+
+		This will return a copy of the given colour with an alpha vaue that ensures that the final rendered colour has
+		the alpha of the given colour, accounting for the given parent alpha value.
+
+		Note that this does not apply the control's alpha multiplier, as that is assumed to be applied through the
+		background item already due to inheritance. Also note that this copy is intended to be passed directly into
+		GUIItem:SetColor() and may be modified by subsequent calls, so do not store it without first copying it.
+	]]
+	function ControlMeta:ApplyAlphaCompensationToChildItemColour( Colour, ParentAlpha )
+		ScratchColour.r = Colour.r
+		ScratchColour.g = Colour.g
+		ScratchColour.b = Colour.b
+		ScratchColour.a = ParentAlpha == 0 and 0 or ( Colour.a / ParentAlpha )
+		return ScratchColour
+	end
+
+	function ControlMeta:CalculateAlphaWithoutMultiplierOrInheritance( Alpha, ParentAlpha )
+		-- Simplest default case, no alpha multiplier and not inheriting parent alpha with propagation.
+		return Alpha
+	end
+	ControlMeta.CalculateAlpha = ControlMeta.CalculateAlphaWithoutMultiplierOrInheritance
+
+	function ControlMeta:CalculateAlphaWithMultiplierWithoutInheritance( Alpha, ParentAlpha )
+		-- Have an alpha multiplier, but not inheriting parent alpha or not set to compensate for it.
+		return Alpha * self.AlphaMultiplier
+	end
+
+	function ControlMeta:CalculateAlphaWithoutMultiplierWithInheritance( Alpha, ParentAlpha )
+		-- No alpha multiplier, but parent alpha is being inherited with compensation enabled, so need to return a value
+		-- that will cancel out the parent's alpha to produce this control's desired value.
+		if ParentAlpha == 0 then return 0 end
+		return Alpha / ParentAlpha
+	end
+
+	function ControlMeta:CalculateAlphaWithMultiplierAndInheritance( Alpha, ParentAlpha )
+		-- Have an alpha multiplier and want to compensate for parent alpha, so first compute the compensated value,
+		-- then multiply it by the multiplier.
+		if ParentAlpha == 0 then return 0 end
+		return Alpha / ParentAlpha * self.AlphaMultiplier
+	end
 end
 
 function ControlMeta:GetTextureWidth()
@@ -895,6 +1355,170 @@ end
 
 function ControlMeta:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
 	self.Background:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
+end
+
+do
+	local Clamp = math.Clamp
+	local Min = math.min
+
+	function ControlMeta:EvaluateBorderRadii( Size, BorderRadii )
+		-- Doesn't make sense for border radius to exceed half the box along either axis.
+		local MaxRadius = Min( Size.x * 0.5, Size.y * 0.5 )
+		return Colour(
+			-- Use the y-axis as the reference value as it makes more sense to want to make borders relative to height
+			-- rather than width, most elements are wider than they are tall.
+			Clamp( BorderRadii[ 1 ] and BorderRadii[ 1 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 2 ] and BorderRadii[ 2 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 3 ] and BorderRadii[ 3 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 4 ] and BorderRadii[ 4 ]:GetValue( Size.y, self, 2, Size.x ) or 0, 0, MaxRadius )
+		)
+	end
+
+	local function SetBorderParameters( self, Size, BorderRadii )
+		self.Background:SetFloat2Parameter( "size", Size )
+
+		local AbsoluteRadii = self:EvaluateBorderRadii( Size, BorderRadii )
+		self.Background:SetFloat4Parameter( "radii", AbsoluteRadii )
+		self.AbsoluteBorderRadii = AbsoluteRadii
+	end
+
+	local function UpdateShaderSize( self, Size )
+		return SetBorderParameters( self, Size, self.BorderRadii )
+	end
+
+	local function SetupRoundedCorners( self, BorderRadii )
+		self.Background:SetShader( SGUI.Shaders.RoundedRect )
+
+		SetBorderParameters( self, self:GetSize(), BorderRadii )
+
+		self:AddPropertyChangeListener( "Size", UpdateShaderSize )
+	end
+
+	local function RemoveRoundedCorners( self )
+		self.Background:SetShader( "shaders/GUIBasic.surface_shader" )
+		self:RemovePropertyChangeListener( "Size", UpdateShaderSize )
+		self.BorderRadii = nil
+		self.AbsoluteBorderRadii = nil
+
+		self:OnPropertyChanged( "TopLeftBorderRadius", nil )
+		self:OnPropertyChanged( "TopRightBorderRadius", nil )
+		self:OnPropertyChanged( "BottomRightBorderRadius", nil )
+		self:OnPropertyChanged( "BottomLeftBorderRadius", nil )
+	end
+
+	local function InitialiseBorderRadii( self, BorderRadii )
+		if not BorderRadii then
+			BorderRadii = { nil, nil, nil, nil }
+			self.BorderRadii = BorderRadii
+		end
+		return BorderRadii
+	end
+
+	local function HasOtherRadii( BorderRadii, Index )
+		if not BorderRadii then return false end
+
+		for i = 1, 4 do
+			if i ~= Index and BorderRadii[ i ] then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	local function SetBorderRadius( self, Index, Radius, Key )
+		local BorderRadii = self.BorderRadii
+		if not BorderRadii and not Radius then return false end
+
+		Radius = Radius and SGUI.Layout.ToUnit( Radius )
+
+		if BorderRadii and BorderRadii[ Index ] == Radius then return false end
+
+		if Radius or HasOtherRadii( BorderRadii, Index ) then
+			BorderRadii = InitialiseBorderRadii( self, BorderRadii )
+			BorderRadii[ Index ] = Radius
+			SetupRoundedCorners( self, BorderRadii )
+			self:OnPropertyChanged( Key, Radius )
+		else
+			RemoveRoundedCorners( self )
+		end
+
+		return true
+	end
+
+	function ControlMeta:SetTopLeftBorderRadius( TopLeftBorderRadius )
+		return SetBorderRadius( self, 1, TopLeftBorderRadius, "TopLeftBorderRadius" )
+	end
+
+	function ControlMeta:GetTopLeftBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 1 ]
+	end
+
+	function ControlMeta:SetTopRightBorderRadius( TopRightBorderRadius )
+		return SetBorderRadius( self, 2, TopRightBorderRadius, "TopRightBorderRadius" )
+	end
+
+	function ControlMeta:GetTopRightBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 2 ]
+	end
+
+	function ControlMeta:SetBottomRightBorderRadius( BottomRightBorderRadius )
+		return SetBorderRadius( self, 3, BottomRightBorderRadius, "BottomRightBorderRadius" )
+	end
+
+	function ControlMeta:GetBottomRightBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 3 ]
+	end
+
+	function ControlMeta:SetBottomLeftBorderRadius( BottomLeftBorderRadius )
+		return SetBorderRadius( self, 4, BottomLeftBorderRadius, "BottomLeftBorderRadius" )
+	end
+
+	function ControlMeta:GetBottomLeftBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 4 ]
+	end
+
+	function ControlMeta:SetBorderRadii( BorderRadii )
+		local CurrentBorderRadii = self.BorderRadii
+		if not CurrentBorderRadii and not BorderRadii then return false end
+
+		if
+			CurrentBorderRadii and BorderRadii and
+			CurrentBorderRadii[ 1 ] == BorderRadii[ 1 ] and
+			CurrentBorderRadii[ 2 ] == BorderRadii[ 2 ] and
+			CurrentBorderRadii[ 3 ] == BorderRadii[ 3 ] and
+			CurrentBorderRadii[ 4 ] == BorderRadii[ 4 ]
+		then
+			return false
+		end
+
+		if BorderRadii then
+			CurrentBorderRadii = InitialiseBorderRadii( self, CurrentBorderRadii )
+			CurrentBorderRadii[ 1 ] = SGUI.Layout.ToUnit( BorderRadii[ 1 ] )
+			CurrentBorderRadii[ 2 ] = SGUI.Layout.ToUnit( BorderRadii[ 2 ] )
+			CurrentBorderRadii[ 3 ] = SGUI.Layout.ToUnit( BorderRadii[ 3 ] )
+			CurrentBorderRadii[ 4 ] = SGUI.Layout.ToUnit( BorderRadii[ 4 ] )
+			SetupRoundedCorners( self, CurrentBorderRadii )
+
+			self:OnPropertyChanged( "TopLeftBorderRadius", CurrentBorderRadii[ 1 ] )
+			self:OnPropertyChanged( "TopRightBorderRadius", CurrentBorderRadii[ 2 ] )
+			self:OnPropertyChanged( "BottomRightBorderRadius", CurrentBorderRadii[ 3 ] )
+			self:OnPropertyChanged( "BottomLeftBorderRadius", CurrentBorderRadii[ 4 ] )
+		else
+			RemoveRoundedCorners( self )
+		end
+
+		return true
+	end
+
+	function ControlMeta:GetBorderRadii()
+		return self.BorderRadii
+	end
+
+	function ControlMeta:SetUniformBorderRadius( Radius )
+		Radius = Radius and SGUI.Layout.ToUnit( Radius )
+		return self:SetBorderRadii( Radius and { Radius, Radius, Radius, Radius } or nil )
+	end
 end
 
 --[[
@@ -963,14 +1587,39 @@ function ControlMeta:ComputeAbsolutePosition( ParentSize )
 	local LeftOffset = SGUI.Layout.ToUnit( self:GetLeftOffset() )
 	local TopOffset = SGUI.Layout.ToUnit( self:GetTopOffset() )
 
+	local OriginX, OriginY = 0, 0
+	local Alignment = self:GetAlignment()
+	if Alignment == SGUI.LayoutAlignment.CENTRE then
+		OriginX = ParentSize.x * 0.5
+	elseif Alignment == SGUI.LayoutAlignment.MAX then
+		OriginX = ParentSize.x
+	end
+
+	local CrossAxisAlignment = self:GetCrossAxisAlignment()
+	if CrossAxisAlignment == SGUI.LayoutAlignment.CENTRE then
+		OriginY = ParentSize.y * 0.5
+	elseif Alignment == SGUI.LayoutAlignment.MAX then
+		OriginY = ParentSize.y
+	end
+
 	return Vector2(
-		LeftOffset:GetValue( ParentSize.x, self, 1 ),
-		TopOffset:GetValue( ParentSize.y, self, 2 )
+		OriginX + LeftOffset:GetValue( ParentSize.x, self, 1, ParentSize.y ),
+		OriginY + TopOffset:GetValue( ParentSize.y, self, 2, ParentSize.x )
 	)
 end
 
 function ControlMeta:IterateChildren()
 	return self.Children:Iterate()
+end
+
+do
+	local function IterateLayoutAncestors( _, Parent )
+		return Parent.LayoutParent or Parent.Parent
+	end
+
+	function ControlMeta:IterateLayoutAncestors()
+		return IterateLayoutAncestors, nil, self
+	end
 end
 
 function ControlMeta:GetParentSize()
@@ -981,17 +1630,21 @@ function ControlMeta:GetParentSize()
 	return self.Parent and self.Parent:GetSize() or Vector2( SGUI.GetScreenSize() )
 end
 
+local VectorAxis = {
+	"x", "y"
+}
+local OppositeAxis = {
+	2, 1
+}
+
 function ControlMeta:GetMaxSizeAlongAxis( Axis )
 	local Padding = self:GetComputedPadding()
+	local TotalIndex = Axis + 4
 
-	local Total = 0
-	if Axis == 1 then
-		Total = Total + Padding[ 1 ] + Padding[ 3 ]
-	else
-		Total = Total + Padding[ 2 ] + Padding[ 4 ]
-	end
-
-	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
+	local Total = Padding[ TotalIndex ]
+	local ParentSize = self:GetParentSize()
+	local MainParentSize = ParentSize[ VectorAxis[ Axis ] ]
+	local OppositeAxisParentSize = ParentSize[ VectorAxis[ OppositeAxis[ Axis ] ] ]
 	local MaxChildSize = 0
 
 	for Child in self:IterateChildren() do
@@ -999,14 +1652,8 @@ function ControlMeta:GetMaxSizeAlongAxis( Axis )
 
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
-		local ChildSize = Child:GetComputedSize( Axis, ParentSize )
-
-		local Margin = Child:GetComputedMargin()
-		if Axis == 1 then
-			ChildSize = ChildSize + Margin[ 1 ] + Margin[ 3 ]
-		else
-			ChildSize = ChildSize + Margin[ 2 ] + Margin[ 4 ]
-		end
+		local ChildSize = Child:GetComputedSize( Axis, MainParentSize, OppositeAxisParentSize ) +
+			Child:GetComputedMargin()[ TotalIndex ]
 
 		MaxChildSize = Max( MaxChildSize, ChildSize )
 	end
@@ -1016,72 +1663,82 @@ end
 
 function ControlMeta:GetContentSizeForAxis( Axis )
 	local Padding = self:GetComputedPadding()
+	local TotalIndex = Axis + 4
 
-	local Total = 0
-	if Axis == 1 then
-		Total = Total + Padding[ 1 ] + Padding[ 3 ]
-	else
-		Total = Total + Padding[ 2 ] + Padding[ 4 ]
-	end
-
-	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
+	local Total = Padding[ TotalIndex ]
+	local ParentSize = self:GetParentSize()
+	local MainParentSize = ParentSize[ VectorAxis[ Axis ] ]
+	local OppositeAxisParentSize = ParentSize[ VectorAxis[ OppositeAxis[ Axis ] ] ]
 
 	for Child in self:IterateChildren() do
 		Child:PreComputeWidth()
 
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
-		Total = Total + Child:GetComputedSize( Axis, ParentSize )
-
-		local Margin = Child:GetComputedMargin()
-		if Axis == 1 then
-			Total = Total + Margin[ 1 ] + Margin[ 3 ]
-		else
-			Total = Total + Margin[ 2 ] + Margin[ 4 ]
-		end
+		Total = Total + Child:GetComputedSize( Axis, MainParentSize, OppositeAxisParentSize )
+		Total = Total + Child:GetComputedMargin()[ TotalIndex ]
 	end
 
 	return Max( Total, 0 )
 end
 
+function ControlMeta:GetContentSizeForAxisFromLayout( Axis )
+	self:HandleLayout( 0, true )
+
+	local Margin, Padding = GetLayoutSpacing( self )
+	return Padding[ Axis + 4 ] + Margin[ Axis + 4 ] + self.Layout:GetContentSizeForAxis( Axis )
+end
+
 -- You can either use AutoSize as part of a layout, or on its own by passing true for UpdateNow.
 function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 	self.AutoSize = AutoSize
+
 	if not UpdateNow then return end
 
 	local ParentSize = self:GetParentSize()
 
-	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ),
-		self:GetComputedSize( 2, ParentSize.y ) ) )
+	self:SetSize(
+		Vector2(
+			self:GetComputedSize( 1, ParentSize.x, ParentSize.y ),
+			self:GetComputedSize( 2, ParentSize.y, ParentSize.x )
+		)
+	)
 end
 
--- Called before a layout computes the current width of the element.
-function ControlMeta:PreComputeWidth()
-	if not self.AutoFont then return end
+do
+	local function SuppressInvalidation() end
 
-	local FontFamily = self.AutoFont.Family
-	local Size = self.AutoFont.Size:GetValue()
+	-- Called before a layout computes the current width of the element.
+	function ControlMeta:PreComputeWidth()
+		if not self.AutoFont then return end
 
-	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size, self.GetText and self:GetText() ) )
-end
+		local FontFamily = self.AutoFont.Family
+		local Size = self.AutoFont.Size:GetValue()
 
--- Called before a layout computes the current height of the element.
--- Override to add wrapping logic.
-function ControlMeta:PreComputeHeight( Width )
-	if not self.AspectRatio or not self.AutoSize then return end
+		-- Suppress invalidating the parent element as it'll see the size change immediately here.
+		self.InvalidateParent = SuppressInvalidation
+		self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size, self.GetText and self:GetText() ) )
+		self.InvalidateParent = nil
+	end
 
-	-- Make height always relative to width.
-	self.AutoSize[ 2 ] = SGUI.Layout.Units.Absolute( Width * self.AspectRatio )
+	-- Called before a layout computes the current height of the element.
+	-- Override to add wrapping logic.
+	function ControlMeta:PreComputeHeight( Width )
+		if not self.AspectRatio or not self.AutoSize then return end
+
+		-- Make height always relative to width.
+		self.AutoSize[ 2 ] = SGUI.Layout.Units.Absolute( Width * self.AspectRatio )
+	end
 end
 
 --[[
 	Computes the size of the control based on the units provided.
 ]]
-function ControlMeta:GetComputedSize( Index, ParentSize )
+function ControlMeta:GetComputedSize( Index, ParentSize, OppositeAxisParentSize )
 	local Size = self.AutoSize
 	if Size then
 		-- Auto-size means use our set auto-size units relative to the passed in size.
-		return Max( Size[ Index ]:GetValue( ParentSize, self, Index ), 0 )
+		return Max( Size[ Index ]:GetValue( ParentSize, self, Index, OppositeAxisParentSize ), 0 )
 	end
 
 	-- Fill means take the size given.
@@ -1090,27 +1747,26 @@ function ControlMeta:GetComputedSize( Index, ParentSize )
 	end
 
 	-- No auto-size means the element has a fixed size.
-	return self:GetSize()[ Index == 1 and "x" or "y" ]
+	return self:GetSizeForAxis( Index )
 end
 
 function ControlMeta:ComputeSpacing( Spacing )
 	if not Spacing then
-		return { 0, 0, 0, 0 }
+		return { 0, 0, 0, 0, 0, 0 }
 	end
 
-	local Computed = {}
-
-	local Parent = self.Parent
 	local ParentSize = self:GetParentSize()
-
-	for i = 1, 4 do
-		local IsYAxis = i % 2 == 0
-		Computed[ i ] = Spacing[ i ]:GetValue(
-			ParentSize[ IsYAxis and "y" or "x" ],
-			self,
-			IsYAxis and 2 or 1
-		)
-	end
+	local Computed = {
+		Spacing[ 1 ]:GetValue( ParentSize.x, self, 1, ParentSize.y ),
+		Spacing[ 2 ]:GetValue( ParentSize.y, self, 2, ParentSize.x ),
+		Spacing[ 3 ]:GetValue( ParentSize.x, self, 1, ParentSize.y ),
+		Spacing[ 4 ]:GetValue( ParentSize.y, self, 2, ParentSize.x ),
+		0,
+		0
+	}
+	-- Pre-compute totals for each axis as this is a common operation.
+	Computed[ 5 ] = Computed[ 1 ] + Computed[ 3 ]
+	Computed[ 6 ] = Computed[ 2 ] + Computed[ 4 ]
 
 	return Computed
 end
@@ -1123,10 +1779,12 @@ function ControlMeta:GetComputedMargin()
 	return self:ComputeSpacing( self.Margin )
 end
 
-function ControlMeta:GetSize()
-	if not self.Background then return end
+function ControlMeta:GetSizeForAxis( Axis )
+	return self:GetSize()[ VectorAxis[ Axis ] ]
+end
 
-	return self.Background:GetSize()
+function ControlMeta:GetSizeForOppositeAxis( Axis )
+	return self:GetSizeForAxis( OppositeAxis[ Axis ] )
 end
 
 --[[
@@ -1135,19 +1793,27 @@ end
 	Controls may override this.
 ]]
 function ControlMeta:SetPos( Pos )
-	if not self.Background then return end
-
 	local OldPos = self.Background:GetPosition()
-	if Pos == OldPos then return end
+	if Pos == OldPos then return false end
+
+	-- Apply the position values to a new vector to avoid the caller having a direct reference to the internal value.
+	OldPos.x = Pos.x
+	OldPos.y = Pos.y
+
+	self.Pos = OldPos
 
 	self.Background:SetPosition( Pos )
 	self:InvalidateMouseState()
 	self:OnPropertyChanged( "Pos", Pos )
+
+	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
+		self:InvalidateCroppingState()
+	end
+
+	return true
 end
 
 function ControlMeta:GetPos()
-	if not self.Background then return end
-
 	return self.Background:GetPosition()
 end
 
@@ -1155,8 +1821,223 @@ end
 	Returns the absolute position of the control on the screen.
 ]]
 function ControlMeta:GetScreenPos()
-	if not self.Background then return end
 	return self.Background:GetScreenPosition( SGUI.GetScreenSize() )
+end
+
+-- By default, layout position and size point at the real position and size with no easing involved.
+-- Note that these call the appropriate method rather than just alias the base method to account for controls that
+-- override SetPos/GetPos/SetSize/GetSize.
+function ControlMeta:SetLayoutPos( Pos )
+	return self:SetPos( Pos )
+end
+function ControlMeta:GetLayoutPos()
+	return self:GetPos()
+end
+function ControlMeta:SetLayoutSize( Size )
+	return self:SetSize( Size )
+end
+function ControlMeta:GetLayoutSize()
+	return self:GetSize()
+end
+
+do
+	local function IsZero( Vec )
+		return Vec.x == 0 and Vec.y == 0
+	end
+
+	local function ResolveCropping( self )
+		-- Recurse upwards until a parent element with a cropping rectange is found.
+		-- In theory the actual cropping could consist of multiple boxes which cut parts of each other out, but this
+		-- is ultimately just a heuristic check so doesn't need perfect accuracy. Most of the time, cropping boxes
+		-- are strictly nested within each other and thus the closest parent is the correct box.
+		local Parent = self.Background:GetParent()
+		while Parent do
+			-- This returns values even when cropping is disabled, so have to assume (0, 0) -> (0, 0) means disabled...
+			local MinCorner, MaxCorner = Parent:GetCropRectangle()
+			if MinCorner and not ( IsZero( MinCorner ) and IsZero( MaxCorner ) ) then
+				local Pos = Parent:GetScreenPosition( SGUI.GetScreenSize() )
+				return Pos + MinCorner, Pos + MaxCorner
+			end
+			Parent = Parent:GetParent()
+		end
+		return nil
+	end
+
+	local function IsPointCropped( ScreenPos, Mins, Maxs )
+		return ScreenPos.x < Mins.x or ScreenPos.y < Mins.y or ScreenPos.x > Maxs.x or ScreenPos.y > Maxs.y
+	end
+
+	local function GetLayoutPos( self )
+		return self.LayoutPos
+	end
+
+	local function SetLayoutPosWithTransition( self, Pos )
+		if self.LayoutPos == Pos then return false end
+
+		-- Copy the position to avoid callers having a reference to the internal value.
+		Pos = Vector( Pos )
+
+		self.LayoutPos = Pos
+
+		local Mins, Maxs = ResolveCropping( self )
+		if Mins then
+			local CurrentScreenPos = self:GetScreenPos()
+			local NewScreenPos = CurrentScreenPos + ( Pos - self:GetPos() )
+			local Size = self:GetLayoutSize()
+			if
+				IsPointCropped( NewScreenPos, Mins, Maxs ) and
+				IsPointCropped( NewScreenPos + Size, Mins, Maxs ) and
+				IsPointCropped( CurrentScreenPos, Mins, Maxs ) and
+				IsPointCropped( CurrentScreenPos + Size, Mins, Maxs )
+			then
+				-- Both the current position and intended position do not appear to be visible, so it would be wasted
+				-- effort to ease them. Just update the position immediately.
+				self:StopMoving( self.Background )
+				self:SetPos( Pos )
+				return true
+			end
+		end
+
+		self.LayoutPosTransition.EndValue = Pos
+		self.LayoutPosTransition.StartValue = nil
+		self:ApplyTransition( self.LayoutPosTransition )
+
+		return true
+	end
+
+	local function SetLayoutPos( self, Pos )
+		-- First update, set the position immediately.
+		self.LayoutPos = Vector( Pos )
+		-- Subsequent position updates will be eased.
+		self.SetLayoutPos = SetLayoutPosWithTransition
+		self.GetLayoutPos = GetLayoutPos
+		return self:SetPos( Pos )
+	end
+
+	local function GetLayoutSize( self )
+		return self.LayoutSize
+	end
+
+	local function SetLayoutSizeWithTransition( self, Size )
+		if self.LayoutSize == Size then return false end
+
+		-- Copy the size to avoid callers having a reference to the internal value.
+		Size = Vector( Size )
+
+		self.LayoutSize = Size
+
+		local Mins, Maxs = ResolveCropping( self )
+		if Mins then
+			local Pos = self:GetScreenPos()
+			local CurrentSize = self:GetSize()
+			if
+				IsPointCropped( Pos, Mins, Maxs ) and
+				IsPointCropped( Pos + Size, Mins, Maxs ) and
+				IsPointCropped( Pos + CurrentSize, Mins, Maxs )
+			then
+				-- Both the current box and intended box do not appear to be visible, so it would be wasted
+				-- effort to ease them. Just update the size immediately.
+				self:StopResizing( self.Background )
+				self:SetSize( Size )
+				return true
+			end
+		end
+
+		self.LayoutSizeTransition.EndValue = Size
+		self.LayoutSizeTransition.StartValue = nil
+		self:ApplyTransition( self.LayoutSizeTransition )
+
+		return true
+	end
+
+	local function SetLayoutSize( self, Size )
+		-- First update, set the size immediately.
+		self.LayoutSize = Vector( Size )
+		-- Subsequent size updates will be eased.
+		self.SetLayoutSize = SetLayoutSizeWithTransition
+		self.GetLayoutSize = GetLayoutSize
+		return self:SetSize( Size )
+	end
+
+	--[[
+		Sets the transition parameters to use to apply easing to position updates that originate from computed layout.
+
+		This allows for automatic easing as part of the layout process without needing to deal with manual positioning.
+
+		Note that the first time the position is set on a control, no easing will occur.
+
+		Input: The transition parameters to use when easing the position after layout (see ApplyTransition for the
+		structure, note that "Type" and "Element" are ignored as they are always "Move" and nil (self.Background)
+		respectively).
+	]]
+	function ControlMeta:SetLayoutPosTransition( Transition )
+		if self.LayoutPosTransition == Transition then return false end
+
+		self.LayoutPosTransition = Transition
+
+		if Transition then
+			Transition.Type = "Move"
+			Transition.Element = nil
+
+			if self.Pos == nil then
+				-- Position hasn't been set yet, the first movement should be instant.
+				-- Leave GetLayoutPos pointing at GetPos until self.LayoutPos is initially populated.
+				self.SetLayoutPos = SetLayoutPos
+			else
+				-- Position has been set before, animate to new positions and set self.LayoutPos for reading.
+				self.LayoutPos = self:GetPos()
+				self.SetLayoutPos = SetLayoutPosWithTransition
+				self.GetLayoutPos = GetLayoutPos
+			end
+		else
+			-- Reset back to the default methods.
+			self.SetLayoutPos = nil
+			self.GetLayoutPos = nil
+			self.LayoutPos = nil
+		end
+
+		return true
+	end
+
+	--[[
+		Sets the transition parameters to use to apply easing to size updates that originate from computed layout.
+
+		This allows for automatic easing as part of the layout process without needing to deal with manual resizing.
+
+		Note that the first time the size is set on a control, no easing will occur.
+
+		Input: The transition parameters to use when easing the size after layout (see ApplyTransition for the
+		structure, note that "Type" and "Element" are ignored as they are always "Size" and nil (self.Background)
+		respectively).
+	]]
+	function ControlMeta:SetLayoutSizeTransition( Transition )
+		if self.LayoutSizeTransition == Transition then return false end
+
+		self.LayoutSizeTransition = Transition
+
+		if Transition then
+			Transition.Type = "Size"
+			Transition.Element = nil
+
+			if self.Size == nil then
+				-- Size hasn't been set yet, the first resize should be instant.
+				-- Leave GetLayoutSize pointing at GetSize until self.LayoutSize is initially populated.
+				self.SetLayoutSize = SetLayoutSize
+			else
+				-- Size has been set before, animate to new sizes and set self.LayoutSize for reading.
+				self.LayoutSize = self:GetSize()
+				self.SetLayoutSize = SetLayoutSizeWithTransition
+				self.GetLayoutSize = GetLayoutSize
+			end
+		else
+			-- Reset back to the default methods.
+			self.SetLayoutSize = nil
+			self.GetLayoutSize = nil
+			self.LayoutSize = nil
+		end
+
+		return true
+	end
 end
 
 do
@@ -1210,8 +2091,6 @@ do
 		Sets the origin anchors for the control.
 	]]
 	function ControlMeta:SetAnchor( X, Y )
-		if not self.Background then return end
-
 		local UsesNewScaling = self.Background:IsOptionFlagSet( NewScalingFlag )
 		if IsType( X, "string" ) then
 			if UsesNewScaling then
@@ -1236,8 +2115,6 @@ do
 		Sets the origin anchors using a fractional value for the control.
 	]]
 	function ControlMeta:SetAnchorFraction( X, Y )
-		if not self.Background then return end
-
 		Shine.AssertAtLevel(
 			self.Background:IsOptionFlagSet( NewScalingFlag ),
 			"Background element must have GUIItem.CorrectScaling flag set to use SetAnchorFraction!",
@@ -1254,8 +2131,6 @@ do
 		This also affects the origin of scaling applied to the element.
 	]]
 	function ControlMeta:SetHotSpot( X, Y )
-		if not self.Background then return end
-
 		Shine.AssertAtLevel(
 			self.Background:IsOptionFlagSet( NewScalingFlag ),
 			"Background element must have GUIItem.CorrectScaling flag set to use SetHotSpot!",
@@ -1435,6 +2310,8 @@ do
 		return Progress
 	end
 
+	local function OnUpdate( self, Element, EasingData ) end
+
 	local Max = math.max
 
 	function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
@@ -1468,6 +2345,7 @@ do
 		EasingData.Elapsed = Max( -Delay, 0 )
 		EasingData.LastUpdate = Clock()
 
+		EasingData.OnUpdate = OnUpdate
 		EasingData.Callback = Callback
 
 		if EasingHandlers.Init then
@@ -1492,6 +2370,7 @@ do
 			local Progress = EasingData.EaseFunc( Elapsed / Duration, EasingData.Power )
 			EasingData.Easer( self, Element, EasingData, Progress )
 			EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
+			EasingData.OnUpdate( self, Element, EasingData )
 		else
 			EasingHandler.Setter( self, Element, EasingData.End, EasingData )
 			if EasingHandler.OnComplete then
@@ -1537,7 +2416,11 @@ local Easers = {
 			SGUI.ColourLerp( EasingData.CurValue, EasingData.Start, Progress, EasingData.Diff )
 		end,
 		Setter = function( self, Element, Colour )
-			Element:SetColor( Colour )
+			if Element == self.Background then
+				self:SetBackgroundColour( Colour )
+			else
+				Element:SetColor( Colour )
+			end
 		end,
 		Getter = function( self, Element )
 			return Element:GetColor()
@@ -1553,12 +2436,27 @@ local Easers = {
 		end,
 		Setter = function( self, Element, Alpha, EasingData )
 			EasingData.Colour.a = Alpha
-			Element:SetColor( EasingData.Colour )
+			if Element == self.Background then
+				self:SetBackgroundColour( EasingData.Colour )
+			else
+				Element:SetColor( EasingData.Colour )
+			end
 		end,
 		Getter = function( self, Element )
 			return Element:GetColor().a
 		end
 	}, "Alpha" ),
+	AlphaMultiplier = Easer( {
+		Easer = function( self, Element, EasingData, Progress )
+			EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
+		end,
+		Setter = function( self, Element, AlphaMultiplier )
+			self:SetAlphaMultiplier( AlphaMultiplier )
+		end,
+		Getter = function( self, Element )
+			return self:GetAlphaMultiplier()
+		end
+	}, "AlphaMultiplier" ),
 	Move = Easer( {
 		Easer = function( self, Element, EasingData, Progress )
 			local CurValue = EasingData.CurValue
@@ -1569,13 +2467,19 @@ local Easers = {
 			CurValue.y = Start.y + Diff.y * Progress
 		end,
 		Setter = function( self, Element, Pos )
-			Element:SetPosition( Pos )
+			if Element == self.Background then
+				self:SetPos( Pos )
+			else
+				Element:SetPosition( Pos )
+			end
 		end,
 		Getter = function( self, Element )
 			return Element:GetPosition()
 		end,
 		OnComplete = function( self, Element, EasingData )
-			self:InvalidateMouseState()
+			if Element == self.Background then
+				self:InvalidateMouseState()
+			end
 		end
 	}, "Move" ),
 	Size = Easer( {
@@ -1632,6 +2536,10 @@ function ControlMeta:StopEasing( Element, EasingHandler )
 	Easers:Remove( Element )
 end
 
+function ControlMeta:StopEasingType( TypeName, Element )
+	return self:StopEasing( Element, Easers[ TypeName ] )
+end
+
 local function AddEaseFunc( EasingData, EaseFunc, Power )
 	EasingData.EaseFunc = EaseFunc or math.EaseOut
 	EasingData.Power = Power or 3
@@ -1662,9 +2570,9 @@ do
 			-- How long (in seconds) to take to ease between the start and end values.
 			Duration = 0.3,
 
-			-- An optional callback that is executed once the transition is complete. It will be passed the element
-			-- that was transitioned.
-			Callback = function( Element ) end,
+			-- An optional callback that is executed once the transition is complete. It will be passed the control and
+			-- the element that was transitioned.
+			Callback = function( self, Element ) end,
 
 			-- The type of easer to use (if using a standard easer)
 			Type = "Move",
@@ -1905,9 +2813,20 @@ do
 		self.TooltipText = Text
 		self:ListenForHoverEvents( self.ShowTooltip, self.HideTooltip )
 
-		if SGUI.IsValid( self.Tooltip ) then
+		if SGUI.IsValid( self.Tooltip ) and not self.Tooltip.FadingOut then
 			self.Tooltip:UpdateText( Text )
 		end
+	end
+
+	--[[
+		Resets the control's tooltip state, hiding any existing tooltip and resetting the hover delay.
+	]]
+	function ControlMeta:ResetTooltip( Text )
+		self:HideTooltip()
+
+		ResetHoveringState( self )
+
+		self:SetTooltip( Text )
 	end
 
 	local DEFAULT_HOVER_TIME = 0.5
@@ -1934,10 +2853,10 @@ do
 	end
 end
 
-function ControlMeta:HandleLayout( DeltaTime )
-	if self.Layout then
-		self.Layout:Think( DeltaTime )
-	end
+function ControlMeta:HandleLayout( DeltaTime, Force )
+	-- Do not attempt to perform layout operations if the element is currently not visible. Normally this is checked
+	-- in Think(), but this method can also be called by a layout.
+	if not Force and ( not self:GetIsVisible() or self:IsCroppedByParent() ) then return end
 
 	-- Sometimes layout requires multiple passes to reach the final answer (e.g. if auto-wrapping text).
 	-- Allow up to 5 iterations before stopping and leaving it for the next frame.
@@ -1947,6 +2866,27 @@ function ControlMeta:HandleLayout( DeltaTime )
 		self.LayoutIsInvalid = false
 		self:PerformLayout()
 	end
+
+	if self.Layout then
+		-- Think after the control's layout as the control's layout invalidation may trigger the layout too.
+		self.Layout:Think( DeltaTime )
+	end
+end
+
+local function DoThink( self, DeltaTime )
+	local Time = Clock()
+
+	self:HandleEasing( Time, DeltaTime )
+
+	-- Only handle easing when out of view (in case the easing is moving the element into view), everything else should
+	-- wait for the element to come back into view.
+	if self:IsCroppedByParent() then return false end
+
+	self:HandleHovering( Time )
+	self:HandleLayout( DeltaTime )
+	self:HandleMouseState()
+
+	return true
 end
 
 --[[
@@ -1959,19 +2899,15 @@ end
 	Alternatively, call only the functions you want to use.
 ]]
 function ControlMeta:Think( DeltaTime )
-	local Time = Clock()
-
-	self:HandleEasing( Time, DeltaTime )
-	self:HandleHovering( Time )
-	self:HandleLayout( DeltaTime )
-	self:HandleMouseState()
+	DoThink( self, DeltaTime )
 end
 
 function ControlMeta:ThinkWithChildren( DeltaTime )
 	if not self:GetIsVisible() then return end
 
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
+	if DoThink( self, DeltaTime ) then
+		self:CallOnChildren( "Think", DeltaTime )
+	end
 end
 
 function ControlMeta:GetTooltipOffset( MouseX, MouseY, Tooltip )
@@ -2042,12 +2978,11 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		if not self.TextureHighlight then
 			if SkipAnim then
 				self:StopFade( self.Background )
-				self.Background:SetColor( self.ActiveCol )
+				self:SetBackgroundColour( self.ActiveCol )
 				return
 			end
 
-			self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol,
-				0, 0.1 )
+			self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol, 0, 0.1 )
 		else
 			self.Background:SetTexture( self.HighlightTexture )
 		end
@@ -2058,12 +2993,11 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		if not self.TextureHighlight then
 			if SkipAnim then
 				self:StopFade( self.Background )
-				self.Background:SetColor( self.InactiveCol )
+				self:SetBackgroundColour( self.InactiveCol )
 				return
 			end
 
-			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol,
-				0, 0.1 )
+			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.1 )
 		else
 			self.Background:SetTexture( self.Texture )
 		end
