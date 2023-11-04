@@ -171,8 +171,7 @@ local function PopulateTabWithLoadingIndicator( Panel )
 						DebugName = "SystemNotificationsLoadingIndicator",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-						AnimateLoading = true,
-						SpinRate = -math.pi * 2,
+						Indeterminate = true,
 						AutoSize = Units.UnitVector( Units.HighResScaled( 64 ), Units.HighResScaled( 64 ) )
 					}
 				},

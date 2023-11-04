@@ -2,6 +2,8 @@
 	Commands module.
 ]]
 
+if Predict then return end
+
 local Shine = Shine
 
 local rawget = rawget

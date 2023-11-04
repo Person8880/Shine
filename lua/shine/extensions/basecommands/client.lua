@@ -16,10 +16,14 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local IsType = Shine.IsType
+local StringFind = string.find
 local StringMatch = string.match
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
+local TableShallowMerge = table.ShallowMerge
+local TableSort = table.sort
 
 Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
 	RegisterVoteType( "ShineCustomVote", {
@@ -272,58 +276,521 @@ function Plugin:SetupAdminMenuCommands()
 	local UnitVector = Units.UnitVector
 	local Auto = Units.Auto
 
+	local AgencyFBNormal = {
+		Family = "kAgencyFB",
+		Size = HighResScaled( 27 )
+	}
+	local AgencyFBMedium = {
+		Family = "kAgencyFB",
+		Size = HighResScaled( 33 )
+	}
+	local Ionicons = {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = HighResScaled( 27 )
+	}
+	local IoniconsMedium = {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = HighResScaled( 32 )
+	}
+
+	local Easing = require "shine/lib/gui/util/easing"
+	local RowPosTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" )
+	}
+
+	local MapSummary = SGUI:DefineControl( "MapSummary", "Column" )
+	SGUI.AddProperty( MapSummary, "MapName" )
+	SGUI.AddProperty( MapSummary, "IsMod" )
+
+	local KnownModTitles = {}
+	local function GetModTitles( ModIDs, OnRetrieved )
+		local Titles = {}
+		local ModsToLookup = {}
+
+		for i = 1, #ModIDs do
+			local ModID = ModIDs[ i ]
+			if KnownModTitles[ ModID ] ~= nil then
+				Titles[ ModID ] = KnownModTitles[ ModID ]
+			else
+				ModsToLookup[ #ModsToLookup + 1 ] = ModID
+			end
+		end
+
+		if #ModsToLookup == 0 then return OnRetrieved( Titles ) end
+
+		local Params = {
+			publishedfileids = ModsToLookup
+		}
+		Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
+			OnSuccess = function( PublishedFileDetails, RequestError )
+				if RequestError or not PublishedFileDetails then return end
+
+				for i = 1, #PublishedFileDetails do
+					local File = PublishedFileDetails[ i ]
+					local FileID = tonumber( File.publishedfileid )
+					if FileID and IsType( File.title, "string" ) then
+						Titles[ FileID ] = File.title
+						KnownModTitles[ FileID ] = File.title
+					end
+				end
+
+				for i = 1, #ModsToLookup do
+					-- Prevent looking up unavailable/deleted mods multiple times.
+					if not Titles[ ModsToLookup[ i ] ] then
+						KnownModTitles[ ModsToLookup[ i ] ] = false
+					end
+				end
+
+				return OnRetrieved( Titles )
+			end
+		} )
+	end
+
+	function MapSummary:SetMapData( MapData )
+		self:Clear()
+		self:SetShader( SGUI.Shaders.Invisible )
+
+		if not MapData then
+			SGUI:BuildTree( {
+				Parent = self,
+				{
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.CENTRE,
+						AutoFont = IoniconsMedium,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						Text = SGUI.Icons.Ionicons.InformationCircled
+					}
+				},
+				{
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.CENTRE,
+						AutoFont = AgencyFBNormal,
+						AutoSize = UnitVector( Units.Min( Percentage.ONE_HUNDRED, Auto.INSTANCE ), Auto.INSTANCE ),
+						AutoWrap = true,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						Text = Plugin:GetPhrase( "MAP_MENU_SELECT_MAP_HINT" )
+					}
+				}
+			} )
+			return
+		end
+
+		self:SetMapName( MapData.Name )
+		self:SetIsMod( MapData.IsMod )
+
+		local MapVoteIsEnabled, MapVotePlugin = Shine:IsExtensionEnabled( "mapvote" )
+		local Alignment
+		local MapPreviewTile
+		local MapOverviewToggleButton
+		if MapVoteIsEnabled then
+			MapPreviewTile = MapVotePlugin:GetMapPreviewTile( MapData.Name )
+			MapPreviewTile.ID = "MapPreview"
+			MapPreviewTile.Props.AutoSize = UnitVector( Percentage.ONE_HUNDRED, 0 )
+			MapPreviewTile.Props.AspectRatio = 1
+			MapPreviewTile.Props.Alignment = Alignment
+			MapPreviewTile.Props.CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
+			MapPreviewTile.Props.Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
+
+			MapOverviewToggleButton = {
+				Class = "Button",
+				Props = {
+					Alignment = Alignment,
+					AutoFont = AgencyFBNormal,
+					AutoSize = UnitVector( Units.Min( Auto.INSTANCE, Percentage.ONE_HUNDRED ), Auto.INSTANCE ),
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					Icon = SGUI.Icons.Ionicons.Earth,
+					IconAutoFont = Ionicons,
+					Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) ),
+					Padding = Spacing.Uniform( HighResScaled( 8 ) ),
+					Text = Plugin:GetPhrase( "TOGGLE_MAP_OVERVIEW" ),
+					TextAutoEllipsis = true
+				},
+				OnBuilt = function( _, Button, Elements )
+					local MapPreview = Elements.MapPreview
+					Button:SetDoClick( function()
+						Button:SetForceHighlight( MapPreview:ToggleOverviewImage() )
+					end )
+				end
+			}
+		else
+			-- Skip the tile if the map vote plugin isn't enabled, and move everything into the centre.
+			Alignment = SGUI.LayoutAlignment.CENTRE
+			MapPreviewTile = { If = false }
+			MapOverviewToggleButton = MapPreviewTile
+		end
+
+		local Tree = {
+			Parent = self,
+			MapPreviewTile,
+			MapOverviewToggleButton,
+			{
+				-- Need a row here rather than a horizontal layout to ensure this gets scrolled.
+				Class = "Row",
+				Props = {
+					Alignment = Alignment,
+					AutoSize = UnitVector( Auto.INSTANCE, Auto.INSTANCE ),
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					Colour = Colour( 0, 0, 0, 0 ),
+					IsSchemed = false
+				},
+				Children = {
+					{
+						Class = "Label",
+						Props = {
+							AutoFont = IoniconsMedium,
+							Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
+						},
+						Bindings = {
+							{
+								From = {
+									Element = self,
+									Property = "IsMod"
+								},
+								To = {
+									{
+										Property = "Text",
+										Transformer = function( IsMod )
+											return IsMod and SGUI.Icons.Ionicons.Wrench or ""
+										end
+									},
+									{
+										Property = "IsVisible"
+									}
+								}
+							}
+						}
+					},
+					{
+						Class = "Label",
+						Props = {
+							AutoFont = AgencyFBMedium
+						},
+						Bindings = {
+							{
+								From = {
+									Element = self,
+									Property = "MapName"
+								},
+								To = {
+									Property = "Text",
+									Transformer = function( MapName )
+										local Enabled, PluginTable = Shine:IsExtensionEnabled( "mapvote" )
+										if Enabled then
+											return PluginTable:GetNiceMapName( MapName )
+										end
+										return MapName
+									end
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				ID = "MapSubtitle",
+				Class = "Label",
+				Props = {
+					Alignment = Alignment,
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					AutoFont = AgencyFBNormal,
+					IsVisible = Shine:IsExtensionEnabled( "mapvote" )
+				},
+				Bindings = {
+					{
+						From = {
+							Element = self,
+							Property = "MapName"
+						},
+						To = {
+							Property = "Text"
+						}
+					}
+				}
+			}
+		}
+
+		local NumMods = #MapData.Mods
+		if NumMods > 0 then
+			Tree[ #Tree + 1 ] = {
+				Class = "Label",
+				Props = {
+					Alignment = Alignment,
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					AutoFont = AgencyFBNormal,
+					Margin = Spacing( 0, HighResScaled( 8 ), 0, 0 ),
+					Text = Plugin:GetPhrase( "MODS" )
+				}
+			}
+
+			for i = 1, NumMods do
+				local ModID = MapData.Mods[ i ]
+				Tree[ #Tree + 1 ] = {
+					Class = "Row",
+					Props = {
+						Alignment = Alignment,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto.INSTANCE )
+					},
+					Children = {
+						{
+							Class = "Label",
+							Props = {
+								Alignment = SGUI.LayoutAlignment.CENTRE,
+								AutoFont = Ionicons,
+								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
+								Text = SGUI.Icons.Ionicons.Wrench
+							}
+						},
+						{
+							ID = ModID,
+							Class = "Label",
+							Props = {
+								Alignment = SGUI.LayoutAlignment.CENTRE,
+								AutoEllipsis = true,
+								AutoFont = AgencyFBNormal,
+								AutoSize = UnitVector(
+									Units.Min( Percentage.SEVENTY_FIVE, Auto.INSTANCE ),
+									Auto.INSTANCE
+								),
+								DoClick = function()
+									Client.ShowWebpage(
+										StringFormat(
+											"https://steamcommunity.com/sharedfiles/filedetails/?id=%s",
+											ModID
+										)
+									)
+								end,
+								StyleName = "Link",
+								Text = KnownModTitles[ ModID ] or tostring( ModID )
+							}
+						}
+					}
+				}
+			end
+		end
+
+		local Elements = SGUI:BuildTree( Tree )
+		if NumMods > 0 then
+			GetModTitles( MapData.Mods, function( Titles )
+				for ModID, Title in pairs( Titles ) do
+					local Element = Elements[ ModID ]
+					if IsType( Title, "string" ) and SGUI.IsValid( Element ) then
+						Element:SetText( Title )
+					end
+				end
+			end )
+		end
+	end
+
+	local FadeTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" ),
+		Type = "AlphaMultiplier",
+		StartValue = 0,
+		EndValue = 1
+	}
+
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
 		Icon = SGUI.Icons.Ionicons.Earth,
 		OnInit = function( Panel, Data )
-			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
-					HighResScaled( 16 ), HighResScaled( 16 ) )
+			local MapVoteIsEnabled, MapVotePlugin = Shine:IsExtensionEnabled( "mapvote" )
+			local Elements = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					Class = "Vertical",
+					Type = "Layout",
+					Props = {
+						Padding = Spacing(
+							HighResScaled( 16 ), HighResScaled( 28 ), HighResScaled( 16 ), HighResScaled( 16 )
+						)
+					},
+					Children = {
+						{
+							Class = "Horizontal",
+							Type = "Layout",
+							Children = {
+								{
+									Class = "Vertical",
+									Type = "Layout",
+									Children = {
+										{
+											Class = "Horizontal",
+											Type = "Layout",
+											Props = {
+												Fill = false,
+												AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 27 ) ),
+												Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
+											},
+											Children = {
+												{
+													Class = "Label",
+													Props = {
+														AutoFont = Ionicons,
+														Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
+														Text = SGUI.Icons.Ionicons.Search
+													}
+												},
+												{
+													ID = "SearchBox",
+													Class = "TextEntry",
+													Props = {
+														Fill = true,
+														AutoFont = AgencyFBNormal,
+														PlaceholderText = self:GetPhrase(
+															"MAP_SEARCH_BOX_PLACEHOLDER_TEXT"
+														)
+													}
+												}
+											}
+										},
+										{
+											ID = "MapList",
+											Class = "List",
+											Props = {
+												DebugName = "AdminMenuMapsList",
+												Fill = true,
+												InheritsParentAlpha = true,
+												Margin = Spacing( 0, 0, HighResScaled( 10 ), 0 ),
+												PropagateAlphaInheritance = true,
+												RowPosTransition = RowPosTransition
+											}
+										}
+									}
+								},
+								{
+									ID = "MapSummary",
+									Class = MapSummary,
+									Props = {
+										AutoSize = UnitVector( Percentage( 33 ), Percentage.ONE_HUNDRED ),
+										Padding = Spacing( HighResScaled( 8 ), 0, 0, 0 ),
+										Scrollable = true,
+										ScrollbarPos = Vector2( 0, 0 ),
+										ScrollbarWidth = HighResScaled( 8 ):GetValue(),
+										ScrollbarHeightOffset = 0
+									}
+								}
+							}
+						},
+						{
+							ID = "ControlLayout",
+							Class = "Horizontal",
+							Type = "Layout",
+							Props = {
+								Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+								Fill = false
+							},
+							Children = {
+								{
+									ID = "ChangeMapButton",
+									Class = "Button",
+									Props = {
+										AutoFont = AgencyFBNormal,
+										DebugName = "AdminMenuChangeMapButton",
+										Icon = SGUI.Icons.Ionicons.ArrowRightC,
+										StyleName = "DangerButton",
+										Text = self:GetPhrase( "CHANGE_MAP" ),
+										Tooltip = self:GetPhrase( "CHANGE_MAP_TIP" )
+									}
+								},
+								{
+									ID = "CallVoteButton",
+									Class = "Button",
+									Props = {
+										Alignment = SGUI.LayoutAlignment.MAX,
+										AutoFont = AgencyFBNormal,
+										DebugName = "AdminMenuCallMapVoteButton",
+										Icon = SGUI.Icons.Ionicons.Speakerphone,
+										IsVisible = MapVoteIsEnabled,
+										Text = self:GetPhrase( "CALL_VOTE" ),
+										Tooltip = self:GetPhrase( "CALL_VOTE_TIP" )
+									}
+								}
+							}
+						}
+					}
+				}
 			} )
 
-			local List = SGUI:Create( "List", Panel )
-			List:SetDebugName( "AdminMenuMapsList" )
-			List:SetColumns( self:GetPhrase( "MAP" ) )
-			List:SetSpacing( 1 )
-			List:SetFill( true )
+			Elements.MapSummary:SetMapData( nil )
+
+			local List = Elements.MapList
+
+			if MapVoteIsEnabled then
+				List:SetColumns( self:GetPhrase( "NAME" ), self:GetPhrase( "MAP" ) )
+				List:SetSpacing( 0.5, 0.5 )
+			else
+				List:SetColumns( self:GetPhrase( "MAP" ) )
+				List:SetSpacing( 1 )
+			end
 
 			Shine.AdminMenu.SetupListWithScaling( List )
 
-			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
-
-			Layout:AddElement( List )
-
 			self.MapList = List
 
-			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
-				Fill = false
-			} )
+			local StringLower = string.lower
+			function Elements.SearchBox:OnTextChanged( OldText, NewText )
+				if NewText == "" then
+					for i = 1, List:GetRowCount() do
+						local Row = List:GetRow( i )
+						if not Row:GetIsVisible() then
+							Row:SetIsVisible( true )
+							Row:ApplyTransition( FadeTransition )
+						end
+					end
+				else
+					local NumColumns = List:GetColumnCount()
+					local SearchText = StringLower( NewText )
 
-			local ChangeMap = SGUI:Create( "Button", Panel )
-			ChangeMap:SetDebugName( "AdminMenuChangeMapButton" )
-			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
-			ChangeMap:SetFontScale( Font, Scale )
-			ChangeMap:SetIcon( SGUI.Icons.Ionicons.ArrowRightC )
-			ChangeMap:SetStyleName( "DangerButton" )
-			function ChangeMap.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
+					for i = 1, List:GetRowCount() do
+						local Row = List:GetRow( i )
+						local MapName = Row:GetColumnText( NumColumns )
+						local NiceName = NumColumns == 2 and Row:GetColumnText( 1 )
 
-				local Map = Selected:GetColumnText( 1 )
+						if
+							StringFind( MapName, SearchText, 1, true ) or
+							( NiceName and StringFind( StringLower( NiceName ), SearchText, 1, true ) )
+						then
+							if not Row:GetIsVisible() then
+								Row:SetIsVisible( true )
+								Row:ApplyTransition( FadeTransition )
+							end
+						else
+							Row:SetIsVisible( false )
+						end
+					end
+				end
 
-				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
+				List:InvalidateLayout( true )
 			end
-			ChangeMap:SetTooltip( self:GetPhrase( "CHANGE_MAP_TIP" ) )
-			ChangeMap:SetEnabled( List:HasSelectedRow() )
 
-			ControlLayout:AddElement( ChangeMap )
+			local ChangeMap = Elements.ChangeMapButton
+			function ChangeMap.DoClick()
+				local Row = List:GetSelectedRow()
+				if not Row then return end
+
+				local MapName = Row:GetData( List:GetColumnCount() )
+				Shine.AdminMenu:RunCommand( "sh_changelevel", MapName )
+			end
+			ChangeMap:SetEnabled( List:HasSelectedRow() )
 
 			function List:OnRowSelected( Index, Row )
 				ChangeMap:SetEnabled( true )
+
+				local MapName = Row:GetData( self:GetColumnCount() )
+				local MapData = Plugin.MapData[ MapName ]
+				Elements.MapSummary:SetMapData( MapData or {
+					Name = MapName,
+					IsMod = false,
+					Mods = {}
+				} )
 			end
 
 			function List:OnRowDeselected( Index, Row )
 				ChangeMap:SetEnabled( false )
+				Elements.MapSummary:SetMapData( nil )
 			end
 
 			local ButtonWidth = Units.Max(
@@ -333,38 +800,61 @@ function Plugin:SetupAdminMenuCommands()
 
 			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
-			if Shine:IsExtensionEnabled( "mapvote" ) then
-				local CallVote = SGUI:Create( "Button", Panel )
-				CallVote:SetDebugName( "AdminMenuCallMapVoteButton" )
-				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
-				CallVote:SetFontScale( Font, Scale )
-				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
-				CallVote:SetIcon( SGUI.Icons.Ionicons.Speakerphone )
-				function CallVote.DoClick()
-					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
-				end
-				CallVote:SetTooltip( self:GetPhrase( "CALL_VOTE_TIP" ) )
-				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
-
-				ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
-
-				ControlLayout:AddElement( CallVote )
+			local CallVote = Elements.CallVoteButton
+			self.CallVoteButton = CallVote
+			function CallVote.DoClick()
+				Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 			end
+			CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
+
+			ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
 
 			local ButtonHeight = Auto( ChangeMap ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
+			Elements.ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
 
-			Layout:AddElement( ControlLayout )
-			Panel:SetLayout( Layout )
 			Panel:InvalidateLayout( true )
 
 			if not self.MapData then
 				self:RequestMapData()
 			else
 				for Map in pairs( self.MapData ) do
-					List:AddRow( Map )
+					if MapVoteIsEnabled then
+						local NiceName = MapVotePlugin:GetNiceMapName( Map )
+						List:AddRow( NiceName, Map )
+					else
+						List:AddRow( Map )
+					end
 				end
 			end
+
+			Hook.Add( "OnPluginLoad", "AdminMenu_MapTab_OnPluginLoad", function( Name )
+				if Name ~= "mapvote" then return end
+
+				-- Map vote plugin was loaded, refresh the map data to trigger map mod information to be networked.
+				if self.MapData then
+					if SGUI.IsValid( List ) then
+						List:Clear()
+						List:SetColumns( self:GetPhrase( "NAME" ), self:GetPhrase( "MAP" ) )
+						List:SetSpacing( 0.5, 0.5 )
+					end
+
+					self.MapData = nil
+					self:RequestMapData()
+				end
+
+				if SGUI.IsValid( CallVote ) then
+					CallVote:SetIsVisible( true )
+				end
+			end )
+
+			Hook.Add( "OnPluginUnload", "AdminMenu_MapTab_OnPluginUnload", function( Name )
+				if Name ~= "mapvote" then return end
+
+				-- No need to clear any data here, just hide the call vote button.
+				if SGUI.IsValid( CallVote ) then
+					CallVote:SetIsVisible( false )
+				end
+			end )
 
 			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
@@ -375,32 +865,382 @@ function Plugin:SetupAdminMenuCommands()
 			local MapList = self.MapList
 			self.MapList = nil
 
+			Hook.Remove( "OnPluginLoad", "AdminMenu_MapTab_OnPluginLoad" )
+			Hook.Remove( "OnPluginUnload", "AdminMenu_MapTab_OnPluginUnload" )
+
 			return Shine.AdminMenu.GetListState( MapList )
 		end
 	} )
 
+	local StateColours = {
+		[ true ] = Colour( 0, 0.7, 0 ),
+		[ false ] = Colour( 1, 0.6, 0 )
+	}
+	local StateIcons = {
+		[ true ] = SGUI.Icons.Ionicons.CheckmarkCircled,
+		[ false ] = SGUI.Icons.Ionicons.MinusCircled
+	}
+
+	local PluginEntry = SGUI:DefineControl( "PluginEntry", "Row" )
+	SGUI.AddProperty( PluginEntry, "Enabled" )
+	SGUI.AddProperty( PluginEntry, "ConfiguredAsEnabled" )
+
+	local function GetSaveButtonTooltip( Enabled, ConfiguredAsEnabled )
+		if ConfiguredAsEnabled ~= Enabled then
+			return Plugin:GetPhrase(
+				Enabled and "LOAD_PLUGIN_SAVE_TIP" or "UNLOAD_PLUGIN_SAVE_TIP"
+			)
+		end
+		return Plugin:GetPhrase(
+			Enabled and "PLUGIN_SAVED_AS_ENABLED" or "PLUGIN_SAVED_AS_DISABLED"
+		)
+	end
+
+	function PluginEntry:OnIsVisibleChanged( IsVisible )
+		if not IsVisible or self:IsCroppedByParent() then return end
+
+		self:PopulateChildren()
+	end
+
+	function PluginEntry:OnCroppedByParentChanged( IsCropped )
+		if IsCropped or not self:GetIsVisible() then return end
+
+		self:PopulateChildren()
+	end
+
+	function PluginEntry:SetPluginData( PluginData )
+		self:SetEnabled( PluginData.Enabled )
+		self:SetConfiguredAsEnabled( PluginData.ConfiguredAsEnabled )
+		self.PluginData = PluginData
+
+		self:AddPropertyChangeListener( "CroppedByParent", self.OnCroppedByParentChanged )
+		self:AddPropertyChangeListener( "IsVisible", self.OnIsVisibleChanged )
+	end
+
+	function PluginEntry:OnMouseEnter()
+		if not self.Elements then return end
+
+		if not self.ButtonElements then
+			self:PopulateAdditionalButtons()
+		end
+
+		self.ButtonElements.MenuButton:SetIsVisible( true )
+	end
+
+	function PluginEntry:HideAdditionalButtons()
+		self.ButtonElements.MenuButton:SetIsVisible( false )
+	end
+
+	function PluginEntry:OnMouseLeave()
+		if not self.ButtonElements then return end
+
+		if not SGUI.IsValid( self.Menu ) then
+			self:HideAdditionalButtons()
+		end
+	end
+
+	local ButtonSize = HighResScaled( 32 )
+
+	function PluginEntry:PopulateAdditionalButtons()
+		local PluginData = self.PluginData
+		self.ButtonElements = SGUI:BuildTree( {
+			Parent = self.Elements.ContentLayout,
+			{
+				ID = "MenuButton",
+				Class = "Button",
+				Props = {
+					Alignment = SGUI.LayoutAlignment.MAX,
+					AutoSize = UnitVector( ButtonSize, ButtonSize ),
+					Horizontal = true,
+					IconAutoFont = Ionicons,
+					Icon = SGUI.Icons.Ionicons.AndroidMoreVertical,
+					OpenMenuOnClick = function( MenuButton )
+						return {
+							MenuPos = MenuButton.MenuPos.BOTTOM,
+							Size = ButtonSize + HighResScaled( 11 ),
+							Populate = function( Menu )
+								self.Menu = Menu
+
+								Menu:SetButtonWidthPadding( HighResScaled( 16 ) )
+								Menu:SetAutoFont( AgencyFBNormal )
+								Menu:CallOnRemove( function()
+									if not SGUI.IsValid( self ) then return end
+
+									self.Menu = nil
+
+									if not self:HasMouseEntered() then
+										self:HideAdditionalButtons()
+									end
+								end )
+
+								local Enabled = self:GetEnabled()
+								local ToggleButton = Menu:AddButton(
+									Plugin:GetPhrase( Enabled and "UNLOAD_PLUGIN" or "LOAD_PLUGIN" ),
+									function()
+										if Enabled then
+											Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name )
+										else
+											Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
+										end
+										Menu:Destroy()
+									end
+								)
+								ToggleButton:SetIconAutoFont( Ionicons )
+								ToggleButton:SetIcon( SGUI.Icons.Ionicons[ Enabled and "Close" or "Power" ] )
+								ToggleButton:SetStyleName(
+									{ "MenuButton", Enabled and "DangerButton" or "SuccessButton" }
+								)
+
+								if Enabled then
+									local ReloadButton = Menu:AddButton(
+										Plugin:GetPhrase( "RELOAD_PLUGIN" ),
+										function()
+											Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
+											Menu:Destroy()
+										end
+									)
+									ReloadButton:SetIconAutoFont( Ionicons )
+									ReloadButton:SetIcon( SGUI.Icons.Ionicons.Refresh )
+								end
+
+								Menu:AutoSizeButtonIcons()
+								Menu:Resize()
+							end
+						}
+					end
+				}
+			}
+		} )
+	end
+
+	function PluginEntry:PopulateChildren()
+		if self.Elements then return end
+
+		local PluginData = self.PluginData
+		local RowElements = {
+			{
+				Class = "Label",
+				Props = {
+					AutoFont = AgencyFBNormal,
+					Text = PluginData.Name
+				}
+			}
+		}
+
+		if PluginData.IsOfficial then
+			RowElements[ #RowElements + 1 ] = {
+				Class = "Label",
+				Props = {
+					AutoFont = Ionicons,
+					Margin = Spacing( HighResScaled( 8 ), 0, 0, 0 ),
+					StyleName = "InfoLabel",
+					Text = SGUI.Icons.Ionicons.AndroidCheckmarkCircle,
+					Tooltip = Shine.Locale:GetPhrase( "Core", "OFFICIAL_PLUGIN_TOOLTIP" )
+				}
+			}
+		end
+
+		RowElements[ #RowElements + 1 ] = {
+			ID = "SaveButton",
+			Class = "Button",
+			Props = {
+				Alignment = SGUI.LayoutAlignment.MAX,
+				AutoSize = UnitVector( ButtonSize, ButtonSize ),
+				Horizontal = true,
+				Icon = SGUI.Icons.Ionicons.Locked,
+				IconAutoFont = Ionicons,
+				Margin = Spacing( HighResScaled( 4 ), 0, 0, 0 )
+			},
+			Bindings = {
+				{
+					From = {
+						Element = self,
+						Property = "ConfiguredAsEnabled"
+					},
+					To = {
+						{
+							Property = "Enabled",
+							Transformer = function( ConfiguredAsEnabled )
+								if
+									( ConfiguredAsEnabled and self.Enabled ) or
+									( not ConfiguredAsEnabled and not self.Enabled )
+								then
+									return false
+								end
+								return true
+							end
+						},
+						{
+							Property = "Tooltip",
+							Transformer = function( ConfiguredAsEnabled )
+								return GetSaveButtonTooltip( self.Enabled, ConfiguredAsEnabled )
+							end
+						}
+					}
+				},
+				{
+					From = {
+						Element = self,
+						Property = "Enabled"
+					},
+					To = {
+						{
+							Property = "Enabled",
+							Transformer = function( Enabled )
+								if
+									( self.ConfiguredAsEnabled and Enabled ) or
+									( not self.ConfiguredAsEnabled and not Enabled )
+								then
+									return false
+								end
+								return true
+							end
+						},
+						{
+							Property = "Tooltip",
+							Transformer = function( Enabled )
+								return GetSaveButtonTooltip( Enabled, self.ConfiguredAsEnabled )
+							end
+						}
+					}
+				}
+			}
+		}
+
+		local Elements = SGUI:BuildTree( {
+			Parent = self,
+			{
+				Class = "Column",
+				Props = {
+					AutoSize = UnitVector( Auto.INSTANCE, Percentage.ONE_HUNDRED ),
+					Padding = Spacing( HighResScaled( 4 ), 0, HighResScaled( 4 ), 0 ),
+					IsSchemed = false
+				},
+				Children = {
+					{
+						Class = "Label",
+						Props = {
+							Alignment = SGUI.LayoutAlignment.CENTRE,
+							AutoFont = Ionicons,
+							CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+							IsSchemed = false,
+							Colour = Colour( 1, 1, 1 )
+						},
+						Bindings = {
+							{
+								From = {
+									Element = self,
+									Property = "Enabled"
+								},
+								To = {
+									Property = "Text",
+									Transformer = function( Enabled ) return StateIcons[ Enabled ] end
+								}
+							}
+						}
+					}
+				},
+				Bindings = {
+					{
+						From = {
+							Element = self,
+							Property = "Enabled"
+						},
+						To = {
+							{
+								Property = "Colour",
+								Transformer = function( Enabled ) return StateColours[ Enabled ] end
+							},
+							{
+								Property = "Tooltip",
+								Transformer = function( Enabled )
+									return Shine.Locale:GetPhrase( "Core", Enabled and "ENABLED" or "DISABLED" )
+								end
+							}
+						}
+					}
+				}
+			},
+			{
+				ID = "ContentLayout",
+				Class = "Horizontal",
+				Type = "Layout",
+				Props = {
+					Padding = Spacing.Uniform( HighResScaled( 8 ) )
+				},
+				Children = RowElements
+			}
+		} )
+
+		function Elements.SaveButton.DoClick()
+			-- The save flag here doesn't cause any attempt to load/unload unless the plugin isn't in the expected
+			-- state, so this won't unexpectedly reload a plugin.
+			if self.Enabled then
+				Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name.." true" )
+			else
+				Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name.." true" )
+			end
+		end
+
+		self.Elements = Elements
+		self:SetColour( Colour( 0, 0, 0, 0.15 ) )
+	end
+
+	local function IsClientOnlyPlugin( PluginTable )
+		return PluginTable.IsClient and not PluginTable.IsShared
+	end
+
+	function self:PopulatePluginList()
+		local Panel = self.PluginPanel
+		if not SGUI.IsValid( Panel ) then return end
+
+		local Rows = {
+			Parent = Panel
+		}
+		local RowMargin = HighResScaled( 8 )
+
+		for Plugin in pairs( Shine.AllPlugins ) do
+			local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
+
+			-- Ignore client-side only plugins, they're managed in the client config menu per player.
+			if not PluginTable or not IsClientOnlyPlugin( PluginTable ) then
+				local PluginData = self.PluginData and self.PluginData[ Plugin ]
+				Rows[ #Rows + 1 ] = {
+					ID = Plugin,
+					Class = PluginEntry,
+					Props = {
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 48 ) ),
+						DebugName = StringFormat( "AdminMenu%sPluginRow", Plugin ),
+						Margin = Spacing( 0, 0, 0, RowMargin ),
+						LayoutPosTransition = RowPosTransition,
+						PluginData = PluginData or {
+							Name = Plugin,
+							Enabled = Enabled,
+							ConfiguredAsEnabled = false,
+							IsOfficial = Shine.IsOfficialExtension( Plugin )
+						},
+						InheritsParentAlpha = true,
+						PropagateAlphaInheritance = true
+					}
+				}
+			end
+		end
+
+		TableSort( Rows, function( A, B )
+			return A.ID < B.ID
+		end )
+
+		local LastRow = Rows[ #Rows ]
+		if LastRow then
+			LastRow.Props.Margin = nil
+		end
+
+		self.PluginRows = SGUI:BuildTree( Rows )
+	end
+
 	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
 		Icon = SGUI.Icons.Ionicons.Settings,
 		OnInit = function( Panel, Data )
-			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
-					HighResScaled( 16 ), HighResScaled( 16 ) )
-			} )
-
-			local List = SGUI:Create( "List", Panel )
-			List:SetDebugName( "AdminMenuPluginsList" )
-			List:SetColumns( self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
-			List:SetSpacing( 0.8, 0.2 )
-			List:SetSecondarySortColumn( 2, 1 )
-			List:SetFill( true )
-
-			Shine.AdminMenu.SetupListWithScaling( List )
-
-			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
-
-			Layout:AddElement( List )
-
-			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}
 
 			-- We need information about the server side only plugins too.
@@ -409,114 +1249,10 @@ function Plugin:SetupAdminMenuCommands()
 				self.PluginData = {}
 			end
 
-			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
-				Fill = false
-			} )
-
-			local function GetSelectedPlugin()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-
-				return Selected:GetColumnText( 1 ), Selected.PluginEnabled
-			end
-
-			local UnloadPlugin = SGUI:Create( "Button", Panel )
-			UnloadPlugin:SetDebugName( "AdminMenuUnloadPluginButton" )
-			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
-			UnloadPlugin:SetFontScale( Font, Scale )
-			UnloadPlugin:SetStyleName( "DangerButton" )
-			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
-			UnloadPlugin:SetIcon( SGUI.Icons.Ionicons.Close )
-			function UnloadPlugin.DoClick( Button )
-				local Plugin, Enabled = GetSelectedPlugin()
-				if not Plugin then return false end
-				if not Enabled then return false end
-
-				local Menu = Button:AddMenu()
-
-				Menu:AddButton( self:GetPhrase( "NOW" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
-				end, self:GetPhrase( "UNLOAD_PLUGIN_TIP" ) ):SetStyleName( "DangerButton" )
-
-				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
-				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "DangerButton" )
-			end
-
-			ControlLayout:AddElement( UnloadPlugin )
-
-			local LoadPlugin = SGUI:Create( "Button", Panel )
-			LoadPlugin:SetDebugName( "AdminMenuLoadPluginButton" )
-			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
-			LoadPlugin:SetFontScale( Font, Scale )
-			LoadPlugin:SetStyleName( "SuccessButton" )
-			LoadPlugin:SetEnabled( List:HasSelectedRow() )
-			LoadPlugin:SetAlignment( SGUI.LayoutAlignment.MAX )
-			LoadPlugin:SetIcon( SGUI.Icons.Ionicons.Power )
-			local function NormalLoadDoClick( Button )
-				local Plugin = GetSelectedPlugin()
-				if not Plugin then return false end
-
-				local Menu = Button:AddMenu()
-
-				Menu:AddButton( self:GetPhrase( "NOW" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
-				end, self:GetPhrase( "LOAD_PLUGIN_TIP" ) ):SetStyleName( "SuccessButton" )
-
-				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
-				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "SuccessButton" )
-			end
-
-			ControlLayout:AddElement( LoadPlugin )
-
-			local function ReloadDoClick()
-				local Plugin = GetSelectedPlugin()
-				if not Plugin then return false end
-
-				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
-			end
-
-			LoadPlugin.DoClick = NormalLoadDoClick
-
-			function List.OnRowSelected( List, Index, Row )
-				local State = Row.PluginEnabled
-
-				LoadPlugin:SetEnabled( true )
-				UnloadPlugin:SetEnabled( true )
-
-				if State then
-					LoadPlugin:SetText( self:GetPhrase( "RELOAD_PLUGIN" ) )
-					LoadPlugin.DoClick = ReloadDoClick
-				else
-					LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
-					LoadPlugin.DoClick = NormalLoadDoClick
-				end
-			end
-
-			function List:OnRowDeselected( Index, Row )
-				LoadPlugin:SetEnabled( false )
-				UnloadPlugin:SetEnabled( false )
-			end
-
 			local function UpdateRow( Name, State )
 				local Row = self.PluginRows[ Name ]
-
 				if SGUI.IsValid( Row ) then
-					self:SetPluginRowState( Row, State )
-
-					if Row == List:GetSelectedRow() then
-						List:OnRowSelected( nil, Row )
-					end
+					Row:SetEnabled( State )
 				end
 			end
 
@@ -528,40 +1264,91 @@ function Plugin:SetupAdminMenuCommands()
 				UpdateRow( Name, false )
 			end )
 
-			local ButtonWidth = Units.Max(
-				HighResScaled( 128 ),
-				Auto( LoadPlugin ) + HighResScaled( 16 ),
-				Auto( UnloadPlugin ) + HighResScaled( 16 )
-			)
-			UnloadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
-			LoadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
+			local Elements = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					Class = "Vertical",
+					Type = "Layout",
+					Props = {
+						Padding = Spacing(
+							HighResScaled( 16 ), HighResScaled( 28 ), HighResScaled( 16 ), HighResScaled( 16 )
+						)
+					},
+					Children = {
+						{
+							Class = "Horizontal",
+							Type = "Layout",
+							Props = {
+								AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto.INSTANCE ),
+								Fill = false,
+								Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
+							},
+							Children = {
+								{
+									Class = "Label",
+									Props = {
+										AutoFont = Ionicons,
+										DebugName = "AdminMenuPluginsFilterIcon",
+										Text = SGUI.Icons.Ionicons.Search,
+										Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
+									}
+								},
+								{
+									ID = "SearchEntry",
+									Class = "TextEntry",
+									Props = {
+										AutoFont = AgencyFBNormal,
+										AutoSize = UnitVector( 0, Auto.INSTANCE ),
+										DebugName = "AdminMenuPluginsFilterTextEntry",
+										Fill = true,
+										PlaceholderText = self:GetPhrase( "SEARCH_PLUGINS_HINT" )
+									}
+								},
+							}
+						},
+						{
+							ID = "PluginPanel",
+							Class = "Column",
+							Props = {
+								DebugName = "AdminMenuPluginsList",
+								Scrollable = true,
+								Fill = true,
+								Shader = SGUI.Shaders.Invisible,
+								ScrollbarPos = Vector2( 0, 0 ),
+								ScrollbarWidth = HighResScaled( 8 ):GetValue(),
+								ScrollbarHeightOffset = 0
+							}
+						}
+					}
+				}
+			} )
 
-			local ButtonHeight = Auto( LoadPlugin ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
+			function Elements.SearchEntry.OnTextChanged( SearchEntry, OldText, NewText )
+				for Plugin, Row in pairs( self.PluginRows ) do
+					local Visible = NewText == "" or not not StringFind( Plugin, NewText, 1, true )
+					local WasVisible = Row:GetIsVisible()
 
-			Layout:AddElement( ControlLayout )
-			Panel:SetLayout( Layout )
-			Panel:InvalidateLayout( true )
+					Row:SetIsVisible( Visible )
+
+					if not WasVisible and Visible then
+						Row:ApplyTransition( FadeTransition )
+					end
+				end
+			end
+
+			self.PluginPanel = Elements.PluginPanel
 
 			if self.PluginAuthed then
 				self:PopulatePluginList()
 			end
-
-			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 2, nil, true )
-			end
 		end,
 
 		OnCleanup = function( Panel )
-			TableEmpty( self.PluginRows )
-
-			local PluginList = self.PluginList
+			self.PluginRows = nil
 			self.PluginList = nil
 
 			Hook.Remove( "OnPluginLoad", "AdminMenu_OnPluginLoad" )
 			Hook.Remove( "OnPluginUnload", "AdminMenu_OnPluginUnload" )
-
-			return Shine.AdminMenu.GetListState( PluginList )
 		end
 	} )
 end
@@ -575,10 +1362,31 @@ function Plugin:ReceiveMapData( Data )
 
 	if self.MapData[ Data.Name ] then return end
 
-	self.MapData[ Data.Name ] = true
+	local DataForMap = {
+		Name = Data.Name,
+		IsMod = Data.IsMod,
+		Mods = {}
+	}
+	for i = 1, 10 do
+		local ModID = Data[ "Mod"..i ]
+		if ModID ~= "" then
+			DataForMap.Mods[ #DataForMap.Mods + 1 ] = tonumber( ModID, 16 )
+		end
+	end
+
+	self.MapData[ Data.Name ] = DataForMap
 
 	if SGUI.IsValid( self.MapList ) then
-		self.MapList:AddRow( Data.Name )
+		if self.MapList:GetColumnCount() == 2 then
+			local Enabled, PluginTable = Shine:IsExtensionEnabled( "mapvote" )
+			local NiceName = Data.Name
+			if Enabled then
+				NiceName = PluginTable:GetNiceMapName( Data.Name )
+			end
+			self.MapList:AddRow( NiceName, Data.Name )
+		else
+			self.MapList:AddRow( Data.Name )
+		end
 	end
 end
 
@@ -591,54 +1399,32 @@ function Plugin:ReceivePluginTabAuthed()
 	self:PopulatePluginList()
 end
 
-function Plugin:PopulatePluginList()
-	local List = self.PluginList
-	if not SGUI.IsValid( List ) then return end
+function Plugin:ReceivePluginData( Data )
+	self.PluginData = self.PluginData or {}
+	self.PluginData[ Data.Name ] = Data
+	Data.IsOfficial = Shine.IsOfficialExtension( Data.Name )
 
-	for Plugin in pairs( Shine.AllPlugins ) do
-		local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
-		local Skip
-		-- Server side plugin.
-		if not PluginTable then
-			Enabled = self.PluginData and self.PluginData[ Plugin ]
-		elseif PluginTable.IsClient and not PluginTable.IsShared then
-			Skip = true
-		end
-
-		if not Skip then
-			local Row = List:AddRow( Plugin, "" )
-			Row:SetDebugName( StringFormat( "AdminMenu%sPluginRow", Plugin ) )
-			self:SetPluginRowState( Row, Enabled )
-
-			self.PluginRows[ Plugin ] = Row
-		end
+	local Row = self.PluginRows and self.PluginRows[ Data.Name ]
+	if Row then
+		Row:SetEnabled( Data.Enabled )
+		Row:SetConfiguredAsEnabled( Data.ConfiguredAsEnabled )
 	end
 end
 
-function Plugin:SetPluginRowState( Row, Enabled )
-	local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 27 )
-	Row:SetColumnText( 2, SGUI.Icons.Ionicons[ Enabled and "CheckmarkCircled" or "MinusCircled" ] )
-	Row:SetTextOverride( 2, {
-		Font = Font,
-		TextScale = Scale,
-		Colour = Enabled and Colour( 0, 1, 0 ) or Colour( 1, 0.8, 0 )
-	} )
-	Row:SetData( 2, Enabled and "1" or "0" )
-	Row.PluginEnabled = Enabled
-end
+do
+	-- Server won't send a network message if a plugin is shared, so have to update the data locally.
+	local function UpdatePluginData( self, Name, Enabled )
+		if not self.PluginData or not self.PluginData[ Name ] then return end
 
-function Plugin:ReceivePluginData( Data )
-	self.PluginData = self.PluginData or {}
-	self.PluginData[ Data.Name ] = Data.Enabled
+		self.PluginData[ Name ].Enabled = Enabled
+	end
 
-	local Row = self.PluginRows[ Data.Name ]
+	function Plugin:OnPluginLoad( Name )
+		UpdatePluginData( self, Name, true )
+	end
 
-	if Row then
-		self:SetPluginRowState( Row, Data.Enabled )
-
-		if Row == self.PluginList:GetSelectedRow() then
-			self.PluginList:OnRowSelected( nil, Row )
-		end
+	function Plugin:OnPluginUnload( Name )
+		UpdatePluginData( self, Name, false )
 	end
 end
 

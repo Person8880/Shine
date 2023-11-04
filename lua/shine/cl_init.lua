@@ -2,7 +2,6 @@
 	Shine client side startup.
 ]]
 
-local include = Script.Load
 local StringFormat = string.format
 
 local Scripts = {

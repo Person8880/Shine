@@ -51,7 +51,7 @@ end
 
 function Notification:SetLayer( Layer )
 	-- Should always be on top.
-	self.BaseClass.SetLayer( self, Layer + 100 )
+	return self.BaseClass.SetLayer( self, Layer + 100 )
 end
 
 function Notification:SetSize( Size )

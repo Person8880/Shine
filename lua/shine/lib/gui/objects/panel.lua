@@ -5,7 +5,9 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
+local IsType = Shine.IsType
 local Max = math.max
 local Min = math.min
 
@@ -16,7 +18,6 @@ Panel.IsWindow = true
 
 local DefaultBuffer = 20
 local ScrollPos = Vector( -10, 0, 0 )
-local ZeroColour = Colour( 0, 0, 0, 0 )
 
 SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 SGUI.AddProperty( Panel, "BlockEventsIfFocusedWindow", true )
@@ -25,7 +26,7 @@ SGUI.AddProperty( Panel, "HorizontalScrollingEnabled", true )
 SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
 SGUI.AddProperty( Panel, "StickyScroll" )
 
-SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( Panel, "Colour", "self:SetBackgroundColour" )
 SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
 
 local function OnAutoHideScrollbarChanged( self, AutoHideScrollbar )
@@ -62,40 +63,59 @@ function Panel:SkinColour()
 end
 
 function Panel:AddTitleBar( Title, Font, TextScale )
-	local TitlePanel = SGUI:Create( "Panel", self )
-	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
-	TitlePanel:SetStyleName( "TitleBar" )
-	TitlePanel:SetAnchor( "TopLeft" )
+	local Tree = SGUI:BuildTree( {
+		Parent = self,
+		{
+			ID = "TitleBar",
+			-- Use "Panel" instead of "Row" to maintain backwards compatibility with skin styling.
+			Class = "Panel",
+			Props = {
+				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, self.TitleBarHeight ),
+				StyleName = "TitleBar",
+				PositionType = SGUI.PositionType.ABSOLUTE
+			},
+			Children = {
+				{
+					Class = "Horizontal",
+					Type = "Layout",
+					Children = {
+						{
+							ID = "TitleLabel",
+							Class = "Label",
+							Props = {
+								Font = IsType( Font, "string" ) and Font or nil,
+								TextScale = TextScale,
+								AutoFont = IsType( Font, "table" ) and Font or nil,
+								Alignment = SGUI.LayoutAlignment.CENTRE,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								UseAlignmentCompensation = true,
+								TextAlignmentX = GUIItem.Align_Center,
+								TextAlignmentY = GUIItem.Align_Center,
+								Text = Title
+							}
+						}
+					}
+				}
+			}
+		}
+	} )
 
-	self.TitleBar = TitlePanel
+	self.TitleBar = Tree.TitleBar
+	self.TitleLabel = Tree.TitleLabel
 
-	local TitleLabel = SGUI:Create( "Label", TitlePanel )
-	TitleLabel:SetAnchor( "CentreMiddle" )
-	TitleLabel:SetFont( Font or Fonts.kAgencyFB_Small )
-	TitleLabel:SetText( Title )
-	TitleLabel:SetTextAlignmentX( GUIItem.Align_Center )
-	TitleLabel:SetTextAlignmentY( GUIItem.Align_Center )
-	if TextScale then
-		TitleLabel:SetTextScale( TextScale )
-	end
-
-	self.TitleLabel = TitleLabel
-
-	self:AddCloseButton( TitlePanel )
+	self:AddCloseButton( self.TitleBar )
 end
 
 function Panel:AddCloseButton( Parent )
 	local CloseButton = SGUI:Create( "Button", Parent )
-	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
-	CloseButton:SetFontScale(
-		SGUI.FontManager.GetFontForAbsoluteSize(
-			SGUI.FontFamilies.Ionicons,
-			self.TitleBarHeight
-		)
-	)
+	CloseButton:SetPositionType( SGUI.PositionType.ABSOLUTE )
+	CloseButton:SetLeftOffset( Units.Percentage.ONE_HUNDRED - self.TitleBarHeight )
+	CloseButton:SetAutoSize( Units.UnitVector( self.TitleBarHeight, self.TitleBarHeight ) )
+	CloseButton:SetAutoFont( {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = SGUI.Layout.ToUnit( self.TitleBarHeight )
+	} )
 	CloseButton:SetText( SGUI.Icons.Ionicons.CloseRound )
-	CloseButton:SetAnchor( "TopRight" )
-	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
 	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
@@ -121,14 +141,14 @@ function Panel:SetScrollable()
 	-- Establish a cropping box to keep elements from rendering outside the panel.
 	-- Note that self.Background is not used as it would crop the scrollbars.
 	local CroppingBox = self:MakeGUICroppingItem()
-	CroppingBox:SetColor( ZeroColour )
+	CroppingBox:SetShader( SGUI.Shaders.Invisible )
 	CroppingBox:SetSize( self.Background:GetSize() )
 	self.Background:AddChild( CroppingBox )
 
 	self.CroppingBox = CroppingBox
 
 	local ScrollParent = self:MakeGUIItem()
-	ScrollParent:SetColor( ZeroColour )
+	ScrollParent:SetShader( SGUI.Shaders.Invisible )
 
 	CroppingBox:AddChild( ScrollParent )
 
@@ -138,8 +158,13 @@ function Panel:SetScrollable()
 
 	self.AllowSmoothScroll = true
 	self.ShowScrollbar = true
+	self.IsScrollable = true
 
 	self:SetSize( self:GetSize() )
+
+	if self.Layout then
+		self.Layout.IsScrollable = true
+	end
 end
 
 function Panel:SetAllowSmoothScroll( Bool )
@@ -160,6 +185,12 @@ function Panel:RemoveScrollingBehaviour()
 	self.CroppingBox = nil
 	self.ScrollParent = nil
 	self:SetShowScrollbar( false )
+	self:SetCroppingBounds( nil )
+	self.IsScrollable = nil
+
+	if self.Layout then
+		self.Layout.IsScrollable = nil
+	end
 end
 
 local function ComputeMaxWidth( Child, PanelWidth )
@@ -199,18 +230,23 @@ function Panel:RecomputeMaxWidth()
 
 	if self.Children then
 		local PanelWidth = MaxWidth
+		local Layout = self.Layout
 
 		for Child in self.Children:Iterate() do
-			if Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar then
+			if
+				Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar and
+				-- Ignore elements that are being moved by the panel's layout, they're covered by ContentWidth below.
+				not ( Layout and Layout:ContainsElement( Child ) )
+			then
 				local MaxX = ComputeMaxWidth( Child, PanelWidth )
 				MaxWidth = Max( MaxWidth, MaxX )
 			end
 		end
 
-		if self.Layout then
+		if Layout then
 			-- Account for how the layout has positioned its elements.
 			-- This only works *after* layout has completed.
-			MaxWidth = Max( MaxWidth, self.Layout.MaxPosX or 0 )
+			MaxWidth = Max( MaxWidth, Layout.ContentWidth or 0 )
 		end
 	end
 
@@ -222,16 +258,21 @@ function Panel:RecomputeMaxHeight()
 
 	if self.Children then
 		local PanelHeight = MaxHeight
+		local Layout = self.Layout
 
 		for Child in self.Children:Iterate() do
-			if Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar then
+			if
+				Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar and
+				-- Ignore elements that are being moved by the panel's layout, they're covered by ContentHeight below.
+				not ( Layout and Layout:ContainsElement( Child ) )
+			then
 				local MaxY = ComputeMaxHeight( Child, PanelHeight )
 				MaxHeight = Max( MaxHeight, MaxY )
 			end
 		end
 
-		if self.Layout then
-			MaxHeight = Max( MaxHeight, self.Layout.MaxPosY or 0 )
+		if Layout then
+			MaxHeight = Max( MaxHeight, Layout.ContentHeight or 0 )
 		end
 	end
 
@@ -240,7 +281,14 @@ end
 
 local function UpdateMaxSize( Child )
 	local Parent = Child.Parent
-	if not Parent.ScrollParent or not Child:GetIsVisible() then return end
+	if
+		not Parent.ScrollParent or
+		not Child:GetIsVisible() or
+		-- As above, ignore changes in position or size if they were caused by the panel's layout (or a child of it).
+		( Parent.Layout and Parent.Layout:ContainsElement( Child ) )
+	then
+		return
+	end
 
 	Parent:InvalidateLayout()
 end
@@ -261,21 +309,16 @@ function Panel:Add( Class, Created )
 end
 
 function Panel:SetSize( Size )
-	local OldSize = self:GetSize()
-
-	self.BaseClass.SetSize( self, Size )
+	if not self.BaseClass.SetSize( self, Size ) then return false end
 
 	if self.CroppingBox then
 		self.CroppingBox:SetSize( Size )
+		self:SetCroppingBounds( Vector2( 0, 0 ), Size )
+	else
+		self:SetCroppingBounds( nil )
 	end
-
-	if Size == OldSize then return end
 
 	self:UpdateScrollbarSize()
-
-	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
-	end
 
 	if self.MaxWidth then
 		self:SetMaxWidth( self.MaxWidth )
@@ -283,6 +326,8 @@ function Panel:SetSize( Size )
 	if self.MaxHeight then
 		self:SetMaxHeight( self.MaxHeight )
 	end
+
+	return true
 end
 
 function Panel:GetMaxWidth()
@@ -424,8 +469,14 @@ function Panel:OnRemoveScrollbar()
 	self.Layout:SetMargin( nil )
 end
 
+local function OnSmoothScrollUpdate( self )
+	-- Ensure children perform their initial/updated layout as scrolling occurs.
+	self:CallOnChildren( "InvalidateCroppingState" )
+end
+
 local function OnScrollChanged( self )
 	self:InvalidateMouseState( true )
+	return OnSmoothScrollUpdate( self )
 end
 
 function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
@@ -435,7 +486,17 @@ function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
 	self.ScrollParentPos.x = -Diff * Fraction
 
 	if Smoothed and self.AllowSmoothScroll then
-		self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, OnScrollChanged, math.EaseOut, 3 )
+		local EasingData = self:MoveTo(
+			self.ScrollParent,
+			nil,
+			self.ScrollParentPos,
+			0,
+			0.2,
+			OnScrollChanged,
+			math.EaseOut,
+			3
+		)
+		EasingData.OnUpdate = OnSmoothScrollUpdate
 	else
 		self.ScrollParent:SetPosition( self.ScrollParentPos )
 		OnScrollChanged( self )
@@ -449,7 +510,7 @@ function Panel:SetMaxWidth( MaxWidth )
 
 	local ElementWidth = self:GetSize().x
 
-	if ElementWidth >= MaxWidth then
+	if SGUI.IsApproximatelyGreaterEqual( ElementWidth, MaxWidth ) then
 		if SGUI.IsValid( self.HorizontalScrollbar ) then
 			self.HorizontalScrollbar:Destroy()
 			self.HorizontalScrollbar = nil
@@ -487,13 +548,7 @@ function Panel:SetMaxWidth( MaxWidth )
 			-- Hide the scrollbar (but still accept mouse wheel input).
 			Scrollbar:HideAndDisableInput()
 		elseif self.AutoHideScrollbar and not self:HasMouseEntered() then
-			local BackCol = Scrollbar.Background:GetColor()
-			BackCol.a = 0
-			local BarCol = Scrollbar.Bar:GetColor()
-			BarCol.a = 0
-
-			Scrollbar.Background:SetColor( BackCol )
-			Scrollbar.Bar:SetColor( BarCol )
+			Scrollbar:SetAlphaMultiplier( 0 )
 		end
 
 		self.OverflowX = true
@@ -512,7 +567,17 @@ function Panel:OnScrollChange( Pos, MaxPos, Smoothed )
 	self.ScrollParentPos.y = -Diff * Fraction
 
 	if Smoothed and self.AllowSmoothScroll then
-		self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, OnScrollChanged, math.EaseOut, 3 )
+		local EasingData = self:MoveTo(
+			self.ScrollParent,
+			nil,
+			self.ScrollParentPos,
+			0,
+			0.2,
+			OnScrollChanged,
+			math.EaseOut,
+			3
+		)
+		EasingData.OnUpdate = OnSmoothScrollUpdate
 	else
 		self.ScrollParent:SetPosition( self.ScrollParentPos )
 		OnScrollChanged( self )
@@ -529,7 +594,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 	local ElementHeight = self:GetSize().y
 
 	-- Height has reduced below the max height, so remove the scrollbar.
-	if ElementHeight >= MaxHeight then
+	if SGUI.IsApproximatelyGreaterEqual( ElementHeight, MaxHeight ) then
 		if SGUI.IsValid( self.Scrollbar ) then
 			self.Scrollbar:Destroy()
 			self.Scrollbar = nil
@@ -568,13 +633,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		end
 
 		if self.AutoHideScrollbar and not self:HasMouseEntered() then
-			local BackCol = Scrollbar.Background:GetColor()
-			BackCol.a = 0
-			local BarCol = Scrollbar.Bar:GetColor()
-			BarCol.a = 0
-
-			Scrollbar.Background:SetColor( BackCol )
-			Scrollbar.Bar:SetColor( BarCol )
+			Scrollbar:SetAlphaMultiplier( 0 )
 		end
 
 		self:OnAddScrollbar()
@@ -585,7 +644,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		return
 	end
 
-	local OldPos = self.Scrollbar.Pos
+	local OldPos = self.Scrollbar.ScrollPosition
 	local OldSize = self.Scrollbar:GetDiffSize()
 
 	local OldScrollSize = self.Scrollbar.ScrollSize
@@ -705,7 +764,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:HasMouseEntered() then
+	if self:ShouldBlockEvents() and self:HasMouseEntered() then
 		return true, self
 	end
 end
@@ -764,7 +823,7 @@ function Panel:OnMouseMove( Down )
 	end
 
 	-- Block mouse movement for lower windows.
-	if MouseIn and SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if MouseIn and self:ShouldBlockEvents() then
 		return true, self
 	end
 end
@@ -776,7 +835,7 @@ end
 function Panel:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
-	self.BaseClass.Think( self, DeltaTime )
+	self.BaseClass.ThinkWithChildren( self, DeltaTime )
 
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:Think( DeltaTime )
@@ -784,8 +843,6 @@ function Panel:Think( DeltaTime )
 	if SGUI.IsValid( self.HorizontalScrollbar ) then
 		self.HorizontalScrollbar:Think( DeltaTime )
 	end
-
-	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function Panel:PerformLayout()
@@ -793,9 +850,15 @@ function Panel:PerformLayout()
 
 	if self.CroppingBox then
 		-- Some elements may have moved to no longer be so far down/to the right.
+		-- The layout will have already positioned centre/max aligned elements based on its new content size, this just
+		-- updates the scrollbars to match it.
 		self:RecomputeMaxHeight()
 		self:RecomputeMaxWidth()
 	end
+end
+
+function Panel:ShouldBlockEvents()
+	return SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow
 end
 
 function Panel:OnMouseWheel( Down )
@@ -815,7 +878,7 @@ function Panel:OnMouseWheel( Down )
 	end
 
 	-- We block the event, so that only the focused window can scroll.
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if self:ShouldBlockEvents() then
 		return false
 	end
 end
@@ -828,7 +891,7 @@ function Panel:PlayerKeyPress( Key, Down )
 	end
 
 	-- Block the event so only the focused window receives input.
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if self:ShouldBlockEvents() then
 		return false
 	end
 end
@@ -840,9 +903,15 @@ function Panel:PlayerType( Char )
 		return true
 	end
 
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if self:ShouldBlockEvents() then
 		return false
 	end
 end
 
+function Panel:Cleanup()
+	self:FreeBoxShadow()
+	return self.BaseClass.Cleanup( self )
+end
+
+SGUI:AddMixin( Panel, "Shadow" )
 SGUI:Register( "Panel", Panel )

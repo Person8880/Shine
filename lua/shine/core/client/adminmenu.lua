@@ -28,8 +28,13 @@ do
 
 	Shine.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 		local WasVisible = AdminMenu.Visible
-		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) and not WasVisible and AdminMenu.Visible then
-			Hook.Broadcast( "OnAdminMenuOpened", AdminMenu )
+		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) then
+			if not WasVisible and AdminMenu.Visible then
+				Hook.Broadcast( "OnAdminMenuOpened", AdminMenu )
+			elseif WasVisible and AdminMenu.Visible and SGUI.IsValid( AdminMenu.Window ) then
+				-- Bring the menu forward if it's already open in case it was lost behind another window.
+				SGUI:SetWindowFocus( AdminMenu.Window )
+			end
 		end
 	end )
 end
@@ -65,8 +70,9 @@ function AdminMenu:Create()
 	Window:SetSize( Size )
 	Window:SetPos( self.Pos )
 
-	Window:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
-	Window:SetTabHeight( Units.Integer( HighResScaled( 88 ) ):GetValue() )
+	Window:SetVerticalLayoutMode( Window.VerticalLayoutModeType.COMPACT )
+	Window:UseAutoTabWidth()
+	Window:SetTabHeight( Units.Integer( HighResScaled( 40 ) ):GetValue() )
 	Window:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 
 	Window:CallOnRemove( function()
@@ -104,6 +110,11 @@ function AdminMenu:Create()
 		self:Close()
 		return true
 	end
+
+	Window:SetBoxShadow( {
+		BlurRadius = HighResScaled( 16 ):GetValue(),
+		Colour = Colour( 0, 0, 0, 0.75 )
+	} )
 end
 
 function AdminMenu:Close( Now )
@@ -112,13 +123,21 @@ function AdminMenu:Close( Now )
 	self:ForceHide( Now )
 
 	if self.ToDestroyOnClose then
-		for Panel in pairs( self.ToDestroyOnClose ) do
+		for Panel in self.ToDestroyOnClose:Iterate() do
 			if Panel:IsValid() then
 				Panel:Destroy()
 			end
-
-			self.ToDestroyOnClose[ Panel ] = nil
 		end
+		self.ToDestroyOnClose:Clear()
+	end
+
+	if self.Modals then
+		for Modal in self.Modals:Iterate() do
+			if Modal:IsValid() then
+				Modal:Close()
+			end
+		end
+		self.Modals:Clear()
 	end
 
 	Hook.Broadcast( "OnAdminMenuClosed", self )
@@ -136,16 +155,26 @@ Shine.Hook.Add( "OnResolutionChanged", "AdminMenu_OnResolutionChanged", function
 	AdminMenu.Created = false
 end )
 
-function AdminMenu:DestroyOnClose( Object )
-	self.ToDestroyOnClose = self.ToDestroyOnClose or {}
+function AdminMenu:AttachModal( Modal )
+	self.Modals = self.Modals or Shine.UnorderedSet()
+	self.Modals:Add( Modal )
+end
 
-	self.ToDestroyOnClose[ Object ] = true
+function AdminMenu:DetachModal( Modal )
+	if not self.Modals then return end
+
+	self.Modals:Remove( Modal )
+end
+
+function AdminMenu:DestroyOnClose( Object )
+	self.ToDestroyOnClose = self.ToDestroyOnClose or Shine.UnorderedSet()
+	self.ToDestroyOnClose:Add( Object )
 end
 
 function AdminMenu:DontDestroyOnClose( Object )
 	if not self.ToDestroyOnClose then return end
 
-	self.ToDestroyOnClose[ Object ] = nil
+	self.ToDestroyOnClose:Remove( Object )
 end
 
 AdminMenu.EasingTime = 0.25
@@ -413,6 +442,8 @@ end
 
 -- Setup the commands tab.
 do
+	local Easing = require "shine/lib/gui/util/easing"
+
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
 	local StringGSub = string.gsub
@@ -426,6 +457,10 @@ do
 	local Commands
 	local CommandsListWidth
 	local Rows = {}
+	local RowPosTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" )
+	}
 
 	local function AddPlayerToList( Ent )
 		local Row = Rows[ Ent.clientId ]
@@ -438,8 +473,10 @@ do
 			return
 		end
 
-		Rows[ Ent.clientId ] = PlayerList:AddRow( Ent.playerName, Ent.steamId,
-			Shine:GetTeamName( Ent.teamNumber, true ) )
+		Row = PlayerList:AddRow( Ent.playerName, Ent.steamId, Shine:GetTeamName( Ent.teamNumber, true ) )
+		Row:SetDebugName( "AdminMenuPlayerRow"..Ent.clientId )
+
+		Rows[ Ent.clientId ] = Row
 	end
 
 	local function UpdatePlayers()
@@ -464,7 +501,7 @@ do
 		local Button = SGUI:Create( "Button" )
 		Button:SetText( Data.Name )
 		Button.DoClick = function( Button )
-			Data.DoClick( Button, PlayerList:GetSelectedRow() )
+			return Data.DoClick( Button, PlayerList:GetSelectedRow() )
 		end
 		Button:SetTooltip( Data.Tooltip )
 		Button.MultiPlayer = Data.MultiPlayer
@@ -490,6 +527,7 @@ do
 		local Button = GenerateButton( CommandData )
 		Button:SetFontScale( Font, Scale )
 		Button:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
+		Button:SetStyleName( "CommandButton" )
 
 		local Width = Units.Auto( Button ) + HighResScaled( 8 )
 		CommandsListWidth:AddValue( Width )
@@ -536,6 +574,7 @@ do
 			PlayerList:SetMultiSelect( true )
 			PlayerList:SetFill( true )
 			PlayerList:SetSecondarySortColumn( 3, 1 )
+			PlayerList:SetRowPosTransition( RowPosTransition )
 
 			AdminMenu.SetupListWithScaling( PlayerList )
 
@@ -661,13 +700,16 @@ do
 		end
 	end
 
-	local function GetArgFromRow( Row )
-		local SteamID = Row:GetColumnText( 2 )
+	local function GetArgFromPlayer( SteamID, Name )
 		if SteamID == "0" then
 			-- It's a bot, so we need to use their name to target them.
-			return StringGSub( Row:GetColumnText( 1 ), "\"", "\\\"" )
+			return StringGSub( Name, "\"", "\\\"" )
 		end
 		return SteamID
+	end
+
+	local function GetArgFromRow( Row )
+		return GetArgFromPlayer( Row:GetColumnText( 2 ), Row:GetColumnText( 1 ) )
 	end
 
 	local function GetArgsFromRows( Rows, MultiPlayer )
@@ -699,7 +741,7 @@ do
 					return
 				end
 
-				OldDoClick( Button, Shine.Stream.Of( Rows ):Map( function( Row )
+				return OldDoClick( Button, Shine.Stream.Of( Rows ):Map( function( Row )
 					return Row:GetColumnText( 2 )
 				end ):AsTable() )
 			end
@@ -707,6 +749,7 @@ do
 			local Data = DoClick
 
 			local Menu
+			local RemovedFrameNumber
 			local function CleanupMenu()
 				self:DontDestroyOnClose( Menu )
 				Menu:Destroy()
@@ -723,25 +766,47 @@ do
 					return
 				end
 
+				if Button:GetLastMouseDownFrameNumber() == RemovedFrameNumber then return end
+
 				if not MultiPlayer and #Rows > 1 then
 					return
 				end
 
 				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
-				Menu = Button:AddMenu( Vector2(
-					HighResScaled( Data.Width or 144 ):GetValue(),
-					HighResScaled( Data.ButtonHeight or 32 ):GetValue()
+				local MenuOptions = Data
+				if IsType( Data.BuildMenuOptions, "function" ) then
+					MenuOptions = Data.BuildMenuOptions( Rows, {
+						GetArgFromPlayer = GetArgFromPlayer
+					} )
+				end
+
+				local NumOptions = #MenuOptions
+				if NumOptions == 0 then return false end
+
+				Menu = Button:AddMenu( UnitVector(
+					HighResScaled( Data.Width or 144 ),
+					HighResScaled( Data.ButtonHeight or 32 )
 				) )
 				Menu:CallOnRemove( function()
 					Menu = nil
+					RemovedFrameNumber = SGUI.FrameNumber()
 				end )
+
+				if IsType( Data.HorizontalMenuPadding, "number" ) then
+					Menu:SetButtonWidthPadding( HighResScaled( Data.HorizontalMenuPadding ) )
+				end
+
+				if IsType( Data.MaxVisibleButtons, "number" ) then
+					Menu:SetMaxVisibleButtons( Data.MaxVisibleButtons )
+				end
+
 				self:DestroyOnClose( Menu )
 
 				local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
-				for i = 1, #Data, 2 do
-					local Option = Data[ i ]
-					local Arg = Data[ i + 1 ]
+				for i = 1, NumOptions, 2 do
+					local Option = MenuOptions[ i ]
+					local Arg = MenuOptions[ i + 1 ]
 
 					if IsType( Arg, "string" ) then
 						Menu:AddButton( Option, function()
@@ -762,6 +827,8 @@ do
 						Arg.Setup( Menu, Command, Args, CleanupMenu )
 					end
 				end
+
+				Menu:FitToScreen()
 			end
 		end
 

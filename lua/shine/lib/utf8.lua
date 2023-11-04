@@ -2141,7 +2141,6 @@ local function UTF8Chars( String )
 end
 string.UTF8Chars = UTF8Chars
 
-
 --[[
 	Encodes a string into valid UTF-8, returning a table of UTF-8 characters.
 ]]
@@ -2154,7 +2153,7 @@ local function UTF8Encode( String )
 		Chars[ Count ] = Char
 	end
 
-	return Chars
+	return Chars, Count
 end
 string.UTF8Encode = UTF8Encode
 

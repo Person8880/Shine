@@ -8,6 +8,7 @@ local SGUI = Shine.GUI
 local Locale = Shine.Locale
 
 local IsType = Shine.IsType
+local Round = math.Round
 local StringFormat = string.format
 
 local ConfigMenu = {}
@@ -57,8 +58,9 @@ function ConfigMenu:Create()
 	self.Menu:SetAnchor( "CentreMiddle" )
 	self.Menu:SetAutoSize( self.Size, true )
 
-	self.Menu:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
-	self.Menu:SetTabHeight( Units.Integer( HighResScaled( 96 ) ):GetValue() )
+	self.Menu:SetVerticalLayoutMode( self.Menu.VerticalLayoutModeType.COMPACT )
+	self.Menu:UseAutoTabWidth()
+	self.Menu:SetTabHeight( Units.Integer( HighResScaled( 40 ) ):GetValue() )
 	self.Menu:SetFontScale( GetSmallFont() )
 
 	self.Pos = self.Menu:GetSize() * -0.5
@@ -98,6 +100,11 @@ function ConfigMenu:Create()
 		self:ForceHide()
 		return true
 	end
+
+	self.Menu:SetBoxShadow( {
+		BlurRadius = HighResScaled( 16 ):GetValue(),
+		Colour = Colour( 0, 0, 0, 0.75 )
+	} )
 end
 
 function ConfigMenu:Close()
@@ -140,7 +147,13 @@ Shine.Hook.Add( "OnClientSettingRemoved", ConfigMenu, function( Entry )
 end )
 
 function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
-	if self.Visible == Bool then return end
+	if self.Visible == Bool then
+		if Bool then
+			-- Bring the menu forward if it's already open in case it was lost behind another window.
+			SGUI:SetWindowFocus( self.Menu )
+		end
+		return
+	end
 
 	if not self.Menu then
 		self:Create()
@@ -243,6 +256,10 @@ local function MakeElementWithDescription( Panel, Entry, Populator )
 	Container:SetLayout( VerticalLayout, true )
 
 	return Container, ValueHolder
+end
+
+local function ArrayToColour( ColourArray )
+	return Colour( ColourArray[ 1 ] / 255, ColourArray[ 2 ] / 255, ColourArray[ 3 ] / 255 )
 end
 
 local SettingsTypes = {
@@ -363,6 +380,94 @@ local SettingsTypes = {
 		Update = function( ValueHolder, NewValue )
 			ValueHolder:SetSelectedOption( ValueHolder.OptionsByValue[ NewValue ] )
 		end
+	},
+	Colour = {
+		Create = function( Panel, Entry )
+			local TranslationSource = Entry.TranslationSource or "Core"
+			local Font, TextScale = GetSmallFont()
+			local CurrentValue = GetConfiguredValue( Entry )
+
+			local Tree = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					ID = "Container",
+					Class = "Row",
+					Props = {
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
+						Shader = SGUI.Shaders.Invisible,
+						DebugName = StringFormat( "ColourPickerRow%s", Entry.ConfigKey )
+					},
+					Children = {
+						{
+							Class = "Label",
+							Props = {
+								AutoEllipsis = true,
+								Font = Font,
+								Fill = true,
+								Text = Locale:GetPhrase( TranslationSource, Entry.Description ),
+								TextScale = TextScale,
+								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
+								DebugName = StringFormat( "ColourPickerRow%sLabel", Entry.ConfigKey )
+							}
+						},
+						{
+							ID = "ColourPicker",
+							Class = "ColourPicker",
+							Props = {
+								AutoSize = UnitVector( HighResScaled( 128 ), HighResScaled( 32 ) ),
+								Value = ArrayToColour( CurrentValue ),
+								Alignment = SGUI.LayoutAlignment.MAX,
+								DebugName = StringFormat( "ColourPickerRow%sPicker", Entry.ConfigKey )
+							}
+						},
+						{
+							ID = "ResetButton",
+							Class = "Button",
+							Props = {
+								AutoSize = UnitVector( HighResScaled( 32 ), HighResScaled( 32 ) ),
+								StyleName = "DangerButton",
+								Icon = SGUI.Icons.Ionicons.ArrowReturnLeft,
+								Tooltip = Locale:GetPhrase( "Core", "CLIENT_CONFIG_RESET_TO_DEFAULT_BUTTON_TOOLTIP" ),
+								Alignment = SGUI.LayoutAlignment.MAX,
+								Margin = Spacing( 0, 0, HighResScaled( 4 ), 0 ),
+								DebugName = StringFormat( "ColourPickerRow%sResetButton", Entry.ConfigKey )
+							}
+						}
+					}
+				}
+			} )
+
+			local DefaultValue = Entry.DefaultValue
+			local function UpdateWithCommand( R, G, B )
+				Shared.ConsoleCommand( StringFormat( "%s %d %d %d", Entry.Command, R, G, B ) )
+			end
+			function Tree.ResetButton:DoClick()
+				UpdateWithCommand( DefaultValue[ 1 ], DefaultValue[ 2 ], DefaultValue[ 3 ] )
+			end
+
+			local function ToIntColour( Value )
+				return Round( Value.r * 255 ), Round( Value.g * 255 ), Round( Value.b * 255 )
+			end
+
+			-- Disable the reset button if already using the default value.
+			Binder():FromElement( Tree.ColourPicker, "Value" )
+				:ToElement( Tree.ResetButton, "Enabled", {
+					Transformer = function( Value )
+						local R, G, B = ToIntColour( Value )
+						return R ~= DefaultValue[ 1 ] or G ~= DefaultValue[ 2 ] or B ~= DefaultValue[ 3 ]
+					end
+				} ):BindProperty()
+
+			function Tree.ColourPicker:OnValueChanged( Value )
+				local R, G, B = ToIntColour( Value )
+				UpdateWithCommand( R, G, B )
+			end
+
+			return Tree.Container, Tree.ColourPicker
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetValue( ArrayToColour( NewValue ) )
+		end
 	}
 }
 
@@ -439,6 +544,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 			TabPanel:SetScrollbarPos( Vector2( -SMALL_PADDING:GetValue(), 0 ) )
 			TabPanel:SetScrollbarHeightOffset( 0 )
 			TabPanel:SetResizeLayoutForScrollbar( true )
+			TabPanel:SetDebugName( "ClientConfigMenuContentPanel" )
 
 			return SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( SMALL_PADDING, SMALL_PADDING,
@@ -453,6 +559,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 				local ElementsByKey = {}
 				local SettingsWithBindings = {}
 				local Dropdowns = {}
+				local ColourPickers = {}
 
 				for i = 1, #Settings do
 					local Setting = Settings[ i ]
@@ -462,6 +569,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 
 					if Setting.Type == "Dropdown" then
 						Dropdowns[ #Dropdowns + 1 ] = ValueHolder
+					elseif Setting.Type == "Colour" then
+						ColourPickers[ #ColourPickers + 1 ] = ValueHolder
 					end
 
 					local TranslationSource = Setting.TranslationSource or "Core"
@@ -586,6 +695,14 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 							Dropdown:DestroyMenu()
 						end
 					end
+
+					-- Do the same for colour picker popups, even though they should have been closed already.
+					for i = 1, #ColourPickers do
+						local ColourPicker = ColourPickers[ i ]
+						if SGUI.IsValid( ColourPicker ) then
+							ColourPicker:DestroyPopup()
+						end
+					end
 				end )
 
 				TabPanel:SetLayout( TabLayout, true )
@@ -620,127 +737,237 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	end
 } )
 
-ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
-	Icon = SGUI.Icons.Ionicons.Settings,
-	OnInit = function( Panel )
-		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( SMALL_PADDING, HighResScaled( 32 ),
-				SMALL_PADDING, SMALL_PADDING )
+do
+	local AgencyFBNormal = {
+		Family = "kAgencyFB",
+		Size = HighResScaled( 27 )
+	}
+	local AgencyFBMedium = {
+		Family = "kAgencyFB",
+		Size = Units.HighResScaled( 33 )
+	}
+	local Ionicons = {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = HighResScaled( 27 )
+	}
+
+	local TableInsert = table.insert
+	local TableSort = table.sort
+
+	local PluginEntry = SGUI:DefineControl( "PluginEntry", "Row" )
+
+	SGUI.AddBoundProperty( PluginEntry, "Active", "EnableSwitch" )
+
+	function PluginEntry:SetPlugin( PluginName )
+		local IsOfficial = Shine.IsOfficialExtension( PluginName )
+		local Enabled, PluginTable = Shine:IsExtensionEnabled( PluginName )
+
+		local NiceName = Locale:GetPhrase( PluginName, "CLIENT_PLUGIN_NAME" )
+		if NiceName == "CLIENT_PLUGIN_NAME" then
+			NiceName = PluginName
+		end
+		local TitleRow = {
+			{
+				Class = "Label",
+				Props = {
+					AutoFont = AgencyFBNormal,
+					Text = NiceName
+				}
+			}
+		}
+		if IsOfficial then
+			TitleRow[ 2 ] = {
+				Class = "Label",
+				Props = {
+					AutoFont = Ionicons,
+					Margin = Spacing( HighResScaled( 8 ), 0, 0, 0 ),
+					StyleName = "InfoLabel",
+					Text = SGUI.Icons.Ionicons.AndroidCheckmarkCircle,
+					Tooltip = Locale:GetPhrase( "Core", "OFFICIAL_PLUGIN_TOOLTIP" )
+				}
+			}
+		end
+
+		local PluginMetadata = {
+			{
+				Class = "Horizontal",
+				Type = "Layout",
+				Props = {
+					AutoSize = UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
+					Fill = false
+				},
+				Children = TitleRow
+			}
+		}
+
+		if PluginTable and PluginTable.Version then
+			PluginMetadata[ #PluginMetadata + 1 ] = {
+				Class = "Label",
+				Props = {
+					AutoFont = AgencyFBNormal,
+					Margin = Spacing( 0, HighResScaled( 4 ), 0, 0 ),
+					Text = Locale:GetInterpolatedPhrase( "Core", "PLUGIN_VERSION", {
+						Version = PluginTable.Version
+					} )
+				}
+			}
+		end
+
+		local Description = Locale:GetPhrase( PluginName, "CLIENT_PLUGIN_DESCRIPTION" )
+		if Description ~= "CLIENT_PLUGIN_DESCRIPTION" then
+			PluginMetadata[ #PluginMetadata + 1 ] = {
+				Class = "Label",
+				Props = {
+					AutoFont = AgencyFBNormal,
+					AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
+					AutoWrap = true,
+					Margin = Spacing( 0, HighResScaled( 4 ), 0, 0 ),
+					Text = Description
+				}
+			}
+		end
+
+		local Elements = SGUI:BuildTree( {
+			Parent = self,
+			{
+				Class = "Vertical",
+				Type = "Layout",
+				Props = {
+					AutoSize = UnitVector( 0, Units.Auto.INSTANCE ),
+					Fill = true
+				},
+				Children = PluginMetadata
+			},
+			{
+				ID = "EnableSwitch",
+				Class = "Switch",
+				Props = {
+					Alignment = SGUI.LayoutAlignment.MAX,
+					AutoSize = UnitVector( HighResScaled( 64 ), HighResScaled( 32 ) ),
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					Margin = Spacing( HighResScaled( 8 ), 0, 0, 0 )
+				},
+				Bindings = {
+					{
+						From = {
+							Element = "EnableSwitch",
+							Property = "Active"
+						},
+						To = {
+							Property = "Tooltip",
+							Transformer = function( Active )
+								return Locale:GetPhrase( "Core", Active and "DISABLE_PLUGIN" or "ENABLE_PLUGIN" )
+							end
+						}
+					}
+				}
+			}
 		} )
 
-		local List = SGUI:Create( "List", Panel )
-		List:SetDebugName( "ClientConfigMenuPluginsList" )
-		List:SetColumns( Locale:GetPhrase( "Core", "PLUGIN" ),
-			Locale:GetPhrase( "Core", "STATE" ) )
-		List:SetSpacing( 0.8, 0.2 )
-		List.ScrollPos = Vector2( 0, 32 )
-		List:SetFill( true )
-		List:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
-		List:SetLineSize( HighResScaled( 32 ):GetValue() )
-		List:SetHeaderSize( List.LineSize )
+		local EnableSwitch = Elements.EnableSwitch
+		EnableSwitch:SetActive( Enabled, true )
 
-		local Font, Scale = GetSmallFont()
-		List:SetHeaderFont( Font )
-		List:SetRowFont( Font )
-		if Scale then
-			List:SetHeaderTextScale( Scale )
-			List:SetRowTextScale( Scale )
+		function EnableSwitch:OnToggled( Active )
+			Shared.ConsoleCommand( ( Active and "sh_loadplugin_cl " or "sh_unloadplugin_cl " )..PluginName )
 		end
 
-		Layout:AddElement( List )
+		self.EnableSwitch = EnableSwitch
 
-		local EnableButton = SGUI:Create( "Button", Panel )
-		EnableButton:SetDebugName( "ClientConfigMenuEnablePluginButton" )
-		EnableButton:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE + SMALL_PADDING ) )
-		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
-		EnableButton:SetFontScale( Font, Scale )
-		EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
-		EnableButton:SetEnabled( false )
-
-		Layout:AddElement( EnableButton )
-
-		function EnableButton:DoClick()
-			local Selected = List:GetSelectedRow()
-			if not Selected then return end
-
-			local Plugin = Selected:GetColumnText( 1 )
-			local Enabled = Selected.PluginEnabled
-
-			Shared.ConsoleCommand( ( Enabled and "sh_unloadplugin_cl " or "sh_loadplugin_cl " )..Plugin )
-		end
-
-		function List:OnRowSelected( Index, Row )
-			local State = Row.PluginEnabled
-
-			EnableButton:SetEnabled( true )
-			if State then
-				EnableButton:SetText( Locale:GetPhrase( "Core", "DISABLE_PLUGIN" ) )
-				EnableButton:SetStyleName( "DangerButton" )
-				EnableButton:SetIcon( SGUI.Icons.Ionicons.Close )
-			else
-				EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
-				EnableButton:SetStyleName( "SuccessButton" )
-				EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
-			end
-		end
-
-		function List:OnRowDeselected( Index, Row )
-			EnableButton:SetEnabled( false )
-		end
-
-		local Rows = {}
-
-		local function UpdateRow( Name, State )
-			local Row = Rows[ Name ]
-			if not Row then return end
-
-			local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 27 )
-			Row:SetColumnText( 2, SGUI.Icons.Ionicons[ State and "CheckmarkCircled" or "MinusCircled" ] )
-			Row:SetTextOverride( 2, {
-				Font = Font,
-				TextScale = Scale,
-				Colour = State and Colour( 0, 1, 0 ) or Colour( 1, 0.8, 0 )
-			} )
-			Row:SetData( 2, State and "1" or "0" )
-			Row.PluginEnabled = State
-
-			if Row == List:GetSelectedRow() then
-				List:OnRowSelected( nil, Row )
-			end
-		end
-
-		Shine.Hook.Add( "OnPluginLoad", ConfigMenu, function( Name, Plugin, Shared )
-			if not Plugin.IsClient then return end
-
-			UpdateRow( Name, true )
-		end )
-
-		Shine.Hook.Add( "OnPluginUnload", ConfigMenu, function( Name, Plugin, Shared )
-			if not Plugin.IsClient then return end
-
-			UpdateRow( Name, false )
-		end )
-
-		Panel:SetLayout( Layout )
-
-		for Plugin in pairs( Shine.AllPlugins ) do
-			local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
-
-			if PluginTable and PluginTable.IsClient and not PluginTable.IsShared then
-				local Row = List:AddRow( Plugin, "" )
-				Rows[ Plugin ] = Row
-				UpdateRow( Plugin, Enabled )
-			end
-		end
-
-		List:SortRows( 1 )
-	end,
-
-	OnCleanup = function( Panel )
-		Shine.Hook.Remove( "OnPluginLoad", ConfigMenu )
-		Shine.Hook.Remove( "OnPluginUnload", ConfigMenu )
+		self:SetColour( Colour( 0, 0, 0, 0.15 ) )
+		self:SetPadding( Spacing( SMALL_PADDING, SMALL_PADDING, SMALL_PADDING, SMALL_PADDING ) )
 	end
-} )
+
+	local function SortByID( A, B )
+		return A.ID < B.ID
+	end
+
+	ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
+		Icon = SGUI.Icons.Ionicons.Settings,
+		OnInit = function( Panel )
+			local Rows = {}
+
+			for Plugin in pairs( Shine.AllPlugins ) do
+				local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
+
+				if PluginTable and PluginTable.IsClient and not PluginTable.IsShared then
+					Rows[ #Rows + 1 ] = {
+						ID = Plugin,
+						Class = PluginEntry,
+						Props = {
+							Plugin = Plugin,
+							Margin = Spacing( 0, 0, 0, SMALL_PADDING ),
+							AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE )
+						}
+					}
+				end
+			end
+
+			TableSort( Rows, SortByID )
+
+			local LastRow = Rows[ #Rows ]
+			if LastRow then
+				LastRow.Props.Margin = nil
+			end
+
+			local Elements = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					Class = "Vertical",
+					Type = "Layout",
+					Props = {
+						Padding = Spacing( SMALL_PADDING, SMALL_PADDING, SMALL_PADDING, SMALL_PADDING )
+					},
+					Children = {
+						{
+							Class = "Label",
+							Props = {
+								AutoFont = AgencyFBMedium,
+								Text = Locale:GetPhrase( "Core", "CLIENT_PLUGINS" ),
+								Margin = Spacing( 0, 0, 0, SMALL_PADDING )
+							}
+						},
+						{
+							Class = "Column",
+							Props = {
+								Scrollable = true,
+								Fill = true,
+								Colour = Colour( 0, 0, 0, 0 ),
+								ScrollbarPos = Vector2( 0, 0 ),
+								ScrollbarWidth = HighResScaled( 8 ):GetValue(),
+								ScrollbarHeightOffset = 0
+							},
+							Children = Rows
+						}
+					}
+				}
+			} )
+
+			local function UpdateRow( Name, Enabled )
+				local Row = Elements[ Name ]
+				if SGUI.IsValid( Row ) then
+					Row:SetActive( Enabled )
+				end
+			end
+
+			Shine.Hook.Add( "OnPluginLoad", ConfigMenu, function( Name, Plugin, Shared )
+				if not Plugin.IsClient then return end
+
+				UpdateRow( Name, true )
+			end )
+
+			Shine.Hook.Add( "OnPluginUnload", ConfigMenu, function( Name, Plugin, Shared )
+				if not Plugin.IsClient then return end
+
+				UpdateRow( Name, false )
+			end )
+		end,
+
+		OnCleanup = function( Panel )
+			Shine.Hook.Remove( "OnPluginLoad", ConfigMenu )
+			Shine.Hook.Remove( "OnPluginUnload", ConfigMenu )
+		end
+	} )
+end
 
 Shine:RegisterClientCommand( "sh_clientconfigmenu", function()
 	ConfigMenu:Show()

@@ -41,8 +41,11 @@
 	"SETTINGS_TAB": "Settings",
 	"PLUGINS_TAB": "Plugins",
 	"CLIENT_SETTINGS": "Client Settings",
-	"ENABLE_PLUGIN": "Enable Plugin",
-	"DISABLE_PLUGIN": "Disable Plugin",
+	"CLIENT_PLUGINS": "Client Plugins",
+	"OFFICIAL_PLUGIN_TOOLTIP": "This plugin is part of the main Shine mod.",
+	"PLUGIN_VERSION": "Version {Version}",
+	"ENABLE_PLUGIN": "Click to enable this plugin",
+	"DISABLE_PLUGIN": "Click to disable this plugin",
 	"PLUGIN": "Plugin",
 	"STATE": "State",
 	"DISABLE_WEB_DESCRIPTION": "Disable web page display from plugins.",
@@ -92,5 +95,10 @@
 	"WARNING_UNREGISTERED_PLUGINS": "Some plugins failed to load as they have not been registered: {Context}",
 	"INFO_PLUGIN_VERSION_UPDATE": "Plugin version updated to {Context}.",
 
-	"ADMIN_MENU_STATUS_TAB": "Status"
+	"ADMIN_MENU_STATUS_TAB": "Status",
+
+	"CLIENT_CONFIG_RESET_TO_DEFAULT_BUTTON_TOOLTIP": "Reset to Default",
+	"RED_SLIDER_LABEL": "Red",
+	"GREEN_SLIDER_LABEL": "Green",
+	"BLUE_SLIDER_LABEL": "Blue"
 }

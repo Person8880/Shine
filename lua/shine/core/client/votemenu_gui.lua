@@ -495,6 +495,7 @@ local function AddButton( self, Pos, Anchor, Text, DoClick )
 	local Button = SGUI:Create( "Button", self.Background )
 	Button:SetupFromTable{
 		Anchor = Anchor,
+		BorderRadii = false,
 		Size = self.ButtonSize,
 		Pos = Pos,
 		ActiveCol = White,

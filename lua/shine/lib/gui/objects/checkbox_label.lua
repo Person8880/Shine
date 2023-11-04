@@ -78,14 +78,6 @@ function CheckBoxWithLabel:AddLabel( Text )
 	Label:SetMargin( Units.Spacing( self:GetLabelPadding(), 0, 0, 0 ) )
 	Label:SetFill( true )
 
-	-- If the text is shortened due to space constraints, provide a tooltip with the full text.
-	Binder():FromElement( Label, "AutoEllipsisApplied" )
-		:ToElement( Label, "Tooltip", {
-			Transformer = function( AutoEllipsisApplied )
-				return AutoEllipsisApplied and Label:GetText() or nil
-			end
-		} ):BindProperty()
-
 	if self.AutoEllipsis then
 		Label:SetAutoEllipsis( true )
 	end
@@ -124,10 +116,6 @@ end
 
 function CheckBoxWithLabel:SetPadding( Padding )
 	self.Layout:SetPadding( Padding )
-end
-
-function CheckBoxWithLabel:GetContentSizeForAxis( Axis )
-	return self.Layout:GetContentSizeForAxis( Axis )
 end
 
 function CheckBoxWithLabel:GetMaxSizeAlongAxis( Axis )

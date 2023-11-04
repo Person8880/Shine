@@ -42,7 +42,10 @@ UnitTest:Test( "Validator", function( Assert )
 		Validator.ValidateField( "CanBeNilOrNumber", Validator.IfType( "number", Validator.Min( 5 ) ) ),
 		Validator.ValidateField( "Enum", Validator.InEnum( Enum, Enum.A ) ),
 		Validator.ValidateField( "SecondEnum", Validator.InEnum( Enum ), { DeleteIfFieldInvalid = true } ),
-		Validator.ValidateField( "ThirdEnum", Validator.InEnum( Enum ) )
+		Validator.ValidateField( "ThirdEnum", Validator.InEnum( Enum ) ),
+		Validator.IfFieldPresent( "CanBeNilOrNumber",
+			Validator.ValidateField( "MustExistIfNumberPresent", Validator.IsType( "string", "default string" ) )
+		)
 	) )
 
 	Validator:AddFieldRule( "KeyValues", Validator.AllKeyValuesSatisfy(
@@ -120,6 +123,21 @@ UnitTest:Test( "Validator", function( Assert )
 		)
 	)
 
+	Validator:AddFieldRule( "ValueWithTooManyElements", Validator.HasLength( 4, 0 ) )
+	Validator:AddFieldRule( "ValueWithTooFewElements", Validator.HasLength( 4, 0 ) )
+
+	Validator:AddFieldRule( "ValueWithoutExclusiveKeys", Validator.Exclusive( "FieldA", "FieldB" ) )
+	Validator:AddFieldRule( "ValueWithoutAnyKeys", Validator.Exclusive( "FieldA", "FieldB", {
+		FailIfBothMissing = true
+	} ) )
+	Validator:AddFieldRule( "ValueWithExclusiveKeysRemoveFirst", Validator.Exclusive( "FieldA", "FieldB" ) )
+	Validator:AddFieldRule( "ValueWithExclusiveKeysRemoveSecond", Validator.Exclusive( "FieldA", "FieldB", {
+		FieldToKeep = "FieldA"
+	} ) )
+	Validator:AddFieldRule( "ValueWithExclusiveKeysDeleteIfInvalid", Validator.Exclusive( "FieldA", "FieldB", {
+		DeleteIfInvalid = true
+	} ) )
+
 	Assert.True( "HasFieldRule should return true for a field with a rule", Validator:HasFieldRule( "TooSmallNumber" ) )
 	Assert.Falsy( "HasFieldRule should return false for a field without a rule", Validator:HasFieldRule( "Nope" ) )
 
@@ -170,6 +188,29 @@ UnitTest:Test( "Validator", function( Assert )
 			LessThanOrEqualTo = 11,
 			EqualTo = 10,
 			NotEqualTo = 10
+		},
+		ValueWithTooManyElements = {
+			1, 2, 3, 4, 5
+		},
+		ValueWithTooFewElements = {
+			1, 2, 3
+		},
+		ValueWithoutExclusiveKeys = {
+			FieldA = false,
+			FieldC = true
+		},
+		ValueWithoutAnyKeys = {},
+		ValueWithExclusiveKeysRemoveFirst = {
+			FieldA = true,
+			FieldB = false
+		},
+		ValueWithExclusiveKeysRemoveSecond = {
+			FieldA = 1,
+			FieldB = 2
+		},
+		ValueWithExclusiveKeysDeleteIfInvalid = {
+			FieldA = false,
+			FieldB = false
 		}
 	}
 	Assert.True( "Validator should have detected problems and made changes", Validator:Validate( Config ) )
@@ -198,7 +239,14 @@ UnitTest:Test( "Validator", function( Assert )
 		ListOfTables = {
 			-- Should correct each entry in the list.
 			{ ShouldBeNumber = 0, Enum = "B", SecondEnum = "A" },
-			{ ShouldBeNumber = 1, CanBeNilOrNumber = 5, Enum = "A", SecondEnum = "B", ThirdEnum = "A" }
+			{
+				ShouldBeNumber = 1,
+				CanBeNilOrNumber = 5,
+				Enum = "A",
+				SecondEnum = "B",
+				ThirdEnum = "A",
+				MustExistIfNumberPresent = "default string"
+			}
 		},
 		KeyValues = {
 			-- Should correct each value under every key.
@@ -228,6 +276,23 @@ UnitTest:Test( "Validator", function( Assert )
 			LessThanOrEqualTo = 10,
 			EqualTo = 10,
 			NotEqualTo = 5
+		},
+		ValueWithTooManyElements = {
+			1, 2, 3, 4
+		},
+		ValueWithTooFewElements = {
+			1, 2, 3, 0
+		},
+		ValueWithoutExclusiveKeys = {
+			FieldA = false,
+			FieldC = true
+		},
+		ValueWithExclusiveKeysRemoveFirst = {
+			-- Should remove the first field by default.
+			FieldB = false
+		},
+		ValueWithExclusiveKeysRemoveSecond = {
+			FieldA = 1
 		}
 	}, Config )
 end )
@@ -327,6 +392,51 @@ UnitTest:Test( "VerifyConfig does nothing when config matches", function( Assert
 	local Updated = Shine.VerifyConfig( ProvidedConfig, DefaultConfig, { __Version = true } )
 	Assert.False( "Config should not have been updated", Updated )
 	Assert.DeepEquals( "Config values should remain unchanged", ExpectedConfig, ProvidedConfig )
+end )
+
+UnitTest:Test( "ApplyConfigMigration - Sets the version only if no migration steps are provided", function( Assert )
+	local Config = Shine.ApplyConfigMigration( {}, {
+		NewVersion = "1.0"
+	} )
+
+	Assert:DeepEquals( {
+		__Version = "1.0"
+	}, Config )
+end )
+
+UnitTest:Test( "ApplyConfigMigration - Applies each step up to the new version based on the current version", function( Assert )
+	local Config = Shine.ApplyConfigMigration( {
+		__Version = "1.1"
+	}, {
+		NewVersion = "2.0",
+		CurrentVersion = Shine.VersionHolder( "1.1" ),
+		MigrationSteps = {
+			{
+				VersionTo = "1.1",
+				Apply = function( Config )
+					Config.DontRunThis = true
+				end
+			},
+			{
+				VersionTo = "1.2",
+				Apply = function( Config )
+					Config.UpdatedTo12 = true
+				end
+			},
+			{
+				VersionTo = "2.0",
+				Apply = function( Config )
+					Config.UpdatedTo20 = true
+				end
+			}
+		}
+	} )
+
+	Assert:DeepEquals( {
+		UpdatedTo12 = true,
+		UpdatedTo20 = true,
+		__Version = "2.0"
+	}, Config )
 end )
 
 UnitTest:Test( "Migrator", function( Assert )

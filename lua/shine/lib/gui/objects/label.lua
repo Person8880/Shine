@@ -12,8 +12,7 @@ local TableConcat = table.concat
 
 local Label = {}
 
-SGUI.AddBoundProperty( Label, "Colour", "Label:SetColor" )
-SGUI.AddBoundProperty( Label, "InheritsParentAlpha", "Label" )
+SGUI.AddBoundProperty( Label, "Colour", "self:SetBackgroundColour" )
 SGUI.AddBoundProperty( Label, "Font", "Label:SetFontName", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "Text", "Label", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "TextAlignmentX", "Label" )
@@ -23,7 +22,7 @@ SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParen
 -- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
 SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
 -- Auto-ellipsis shortens text if it extends beyond the given auto-width (or fill size).
-SGUI.AddProperty( Label, "AutoEllipsis", false )
+SGUI.AddProperty( Label, "AutoEllipsis", false, { "InvalidatesParent" } )
 
 local function MarkSizeDirty( self )
 	self.CachedTextWidth = nil
@@ -32,9 +31,14 @@ local function MarkSizeDirty( self )
 	self:InvalidateMouseState()
 end
 
+local function InvalidateWrappedWidth( self )
+	self.LastWrappedWidth = nil
+end
+
 do
 	local function SetupElementForFontName( self, Font )
 		SGUI.FontManager.SetupElementForFontName( self.Label, Font )
+		InvalidateWrappedWidth( self )
 	end
 
 	function Label:Initialise()
@@ -54,6 +58,7 @@ do
 
 		self:AddPropertyChangeListener( "Text", self.EvaluateOptionFlags )
 		self:AddPropertyChangeListener( "Font", SetupElementForFontName )
+		self:AddPropertyChangeListener( "TextScale", InvalidateWrappedWidth )
 	end
 end
 
@@ -64,6 +69,7 @@ function Label:EvaluateOptionFlags( Text )
 	else
 		self.Label:ClearOptionFlag( GUIItem.PerLineTextAlignment )
 	end
+	InvalidateWrappedWidth( self )
 end
 
 -- Sets whether the label should offset itself during layout to ensure alignment does not affect position.
@@ -149,6 +155,8 @@ end
 
 -- Apply word wrapping before the height is computed (assuming height = Units.Auto.INSTANCE).
 function Label:ApplyAutoWrapping( Width )
+	if self.LastWrappedWidth == Width then return end
+
 	local CurrentText = self.Label:GetText()
 
 	-- Pass in a dummy to avoid mutating the actual text value assigned to this label,
@@ -156,20 +164,23 @@ function Label:ApplyAutoWrapping( Width )
 	WordWrapDummy.Element = self
 	SGUI.WordWrap( WordWrapDummy, self.Text, 0, Width )
 
+	self.LastWrappedWidth = Width
+
 	if CurrentText ~= self.Label:GetText() then
 		MarkSizeDirty( self )
 
-		-- Look for the first ancestor whose height is not determined automatically, and invalidate it.
-		-- This ensures any change in height from wrapping the text is accounted for.
-		local Parent = self.Parent
-		while SGUI.IsValid( Parent ) do
-			local AutoSize = Parent:GetAutoSize()
-			if not AutoSize or getmetatable( AutoSize[ 2 ] ) ~= Units.Auto then
-				Parent:InvalidateLayout()
-				break
-			end
+		-- As this may be within elements/layouts that depend on the size of the label, notify everything up the layout
+		-- chain to re-evaluate their layout. This ensures that elements that may come before the label that may want to
+		-- depend on its size get resized and moved accordingly.
+		for Ancestor in self:IterateLayoutAncestors() do
+			Ancestor:InvalidateLayout()
 
-			Parent = Parent.Parent
+			if not Ancestor.IsLayout then
+				local AutoSize = Ancestor:GetAutoSize()
+				if not AutoSize or not AutoSize[ 2 ]:DoesValueDependOnChildren() then
+					break
+				end
+			end
 		end
 	end
 end
@@ -177,6 +188,10 @@ end
 local function ResetAutoEllipsis( self, Text )
 	self.Label:SetText( Text )
 	self:EvaluateOptionFlags( Text )
+
+	if self.UsingAutoEllipsisTooltip then
+		self:SetTooltip( nil )
+	end
 
 	MarkSizeDirty( self )
 
@@ -202,11 +217,10 @@ end
 
 function Label:ApplyAutoEllipsis( Width )
 	local Text = self.Text
-	if self:GetTextWidth( Text ) <= Width then
+	if SGUI.IsApproximatelyGreaterEqual( Width, self:GetTextWidth( Text ) ) then
 		if self.AutoEllipsisApplied then
 			ResetAutoEllipsis( self, Text )
 		end
-
 		return
 	end
 
@@ -217,6 +231,10 @@ function Label:ApplyAutoEllipsis( Width )
 			if self.Label:GetText() ~= TextWithEllipsis then
 				self.Label:SetText( TextWithEllipsis )
 				self:EvaluateOptionFlags( TextWithEllipsis )
+				if self.TooltipText == nil or self.UsingAutoEllipsisTooltip then
+					self:SetTooltip( Text )
+					self.UsingAutoEllipsisTooltip = true
+				end
 
 				MarkSizeDirty( self )
 			end
@@ -229,6 +247,13 @@ function Label:ApplyAutoEllipsis( Width )
 			break
 		end
 	end
+end
+
+function Label:SetTooltip( Text )
+	-- Reset the auto-ellipsis flag if the tooltip is changed externally. If it's changed internally, this will be added
+	-- again immediately after.
+	self.UsingAutoEllipsisTooltip = nil
+	return self.BaseClass.SetTooltip( self, Text )
 end
 
 function Label:SetSize() end

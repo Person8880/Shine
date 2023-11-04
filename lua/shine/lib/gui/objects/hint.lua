@@ -16,8 +16,8 @@ local ToUnit = SGUI.Layout.ToUnit
 
 local Hint = {}
 
-SGUI.AddBoundProperty( Hint, "Colour", "Background:SetColor" )
-SGUI.AddBoundProperty( Hint, "FlairColour", "Flair:SetColor" )
+SGUI.AddBoundProperty( Hint, "Colour", "self:SetBackgroundColour" )
+SGUI.AddBoundProperty( Hint, "FlairColour", "Flair:SetColour" )
 SGUI.AddBoundProperty( Hint, "Text", "HelpText:SetText", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Hint, "TextColour", "HelpText:SetColour" )
 SGUI.AddBoundProperty( Hint, "Font", "HelpText:SetFont", { "InvalidatesParent" } )
@@ -29,48 +29,61 @@ function Hint:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
-
-	self.Flair = self:MakeGUIItem()
-	self.Background:AddChild( self.Flair )
-
 	self.FlairWidth = HighResScaled( 8 )
 
-	local Padding = Spacing( HighResScaled( 16 ), HighResScaled( 8 ), HighResScaled( 8 ), HighResScaled( 8 ) )
-
-	local Layout = SGUI.Layout:CreateLayout( "Horizontal", {
-		Padding = Padding
+	local Elements = SGUI:BuildTree( {
+		Parent = self,
+		{
+			Class = "Horizontal",
+			Type = "Layout",
+			Children = {
+				{
+					ID = "Flair",
+					Class = "Image",
+					Props = {
+						IsSchemed = false
+					}
+				},
+				{
+					ID = "HelpTextContainer",
+					Class = "Horizontal",
+					Type = "Layout",
+					Props = {
+						AutoSize = UnitVector( 0, Units.Auto.INSTANCE ),
+						Fill = true,
+						Padding = Spacing.Uniform( HighResScaled( 8 ) )
+					},
+					Children = {
+						{
+							ID = "HelpText",
+							Class = "Label",
+							Props = {
+								AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
+								AutoWrap = true,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								Fill = true,
+								IsSchemed = false
+							}
+						}
+					}
+				}
+			}
+		}
 	} )
 
-	local HelpText = SGUI:Create( "Label", self )
-	HelpText:SetIsSchemed( false )
-	HelpText:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
-	HelpText:SetFill( true )
-	HelpText:SetAutoWrap( true )
-	Layout:AddElement( HelpText )
+	-- Using an auto-size unit instead of a percentage unit avoids a circular dependency on the height.
+	-- The auto-wrapping label will cause layout to be invalidated up the tree when its size changes which will be
+	-- picked up by the auto-size unit here.
+	Elements.Flair:SetAutoSize( UnitVector( self.FlairWidth, Units.Auto( Elements.HelpTextContainer ) ) )
 
-	self.HelpText = HelpText
-
-	self:SetLayout( Layout, true )
-end
-
-function Hint:GetContentSizeForAxis( Axis )
-	if Axis == 1 then
-		return 0
-	end
-
-	return self.HelpText:GetSize().y + Spacing.GetHeight( self.Layout:GetComputedPadding() )
+	self.Flair = Elements.Flair
+	self.HelpText = Elements.HelpText
 end
 
 function Hint:SetFlairWidth( FlairWidth )
 	self.FlairWidth = ToUnit( FlairWidth )
+	self.Flair.AutoSize[ 1 ] = self.FlairWidth
 	self:InvalidateLayout()
-end
-
-function Hint:PerformLayout()
-	self.BaseClass.PerformLayout( self )
-
-	local Size = self:GetSize()
-	self.Flair:SetSize( Vector2( self.FlairWidth:GetValue( Size.x, self, 1 ), Size.y ) )
 end
 
 SGUI:Register( "Hint", Hint )

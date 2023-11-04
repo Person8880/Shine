@@ -25,6 +25,36 @@ UnitTest:Test( "PatternSafe", function( Assert )
 	Assert.True( "Should be able to search without error", pcall( string.find, ".*+-?()[]%^$", Pattern ) )
 end )
 
+UnitTest:Test( "IterateExploded - Handles pattern-based separators", function( Assert )
+	local Segments = {}
+	for EndIndex, Segment in string.IterateExploded( "thisssssissssasssstesssst", "s+" ) do
+		Segments[ #Segments + 1 ] = { EndIndex, Segment }
+	end
+	Assert:DeepEquals( {
+		{ 8, "thi" }, { 13, "i" }, { 18, "a" }, { 24, "te" }, { 26, "t" }
+	}, Segments )
+end )
+
+UnitTest:Test( "IterateExploded - Handles non-pattern based separators", function( Assert )
+	local Segments = {}
+	for EndIndex, Segment in string.IterateExploded( "Test.Thing.More.Things", ".", true ) do
+		Segments[ #Segments + 1 ] = Segment
+	end
+	Assert:ArrayEquals( {
+		"Test", "Thing", "More", "Things"
+	}, Segments )
+end )
+
+UnitTest:Test( "IterateExploded - Handles edge case where separator is at start/end", function( Assert )
+	local Segments = {}
+	for EndIndex, Segment in string.IterateExploded( "/some/path/to/things/", "/", true ) do
+		Segments[ #Segments + 1 ] = Segment
+	end
+	Assert:ArrayEquals( {
+		"", "some", "path", "to", "things", ""
+	}, Segments )
+end )
+
 UnitTest:Test( "Explode - Handles pattern-based separators", function( Assert )
 	local ExplodedText = string.Explode( "thisssssissssasssstesssst", "s+" )
 	Assert.ArrayEquals( "Should have applied the separator as a pattern", {

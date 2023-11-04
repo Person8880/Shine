@@ -14,6 +14,7 @@ if Server then return end
 local Hook = Shine.Hook
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
 local Binder = require "shine/lib/gui/binding/binder"
 
@@ -45,11 +46,11 @@ local function Scale( Value, WidthMult, HeightMult )
 	return Vector( Value.x * WidthMult, Value.y * HeightMult, 0 )
 end
 
-local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
+local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale, WebPageWindow )
 	local WidthMult = Max( ScrW / 1920, 1 )
 	local HeightMult = Max( ScrH / 1080, 1 )
 
-	local Window = SGUI:Create( "Panel" )
+	local Window = SGUI:Create( "Modal" )
 	local WindowSize = Scale( PopupSize, WidthMult, HeightMult )
 	Window:SetupFromTable{
 		Size = WindowSize,
@@ -58,17 +59,6 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 	}
 	Window.TitleBarHeight = TitleBarH
 	Window:AddTitleBar( Locale:GetPhrase( "Core", "OPEN_IN_STEAM_OVERLAY" ), Font, TextScale )
-
-	local OldOnMouseDown = Window.OnMouseDown
-
-	function Window:OnMouseDown( Key, DoubleClick )
-		if not self:MouseIn( self.Background ) then
-			self:Destroy()
-			return
-		end
-
-		return OldOnMouseDown( self, Key, DoubleClick )
-	end
 
 	local Text = Window:Add( "Label" )
 	Text:SetupFromTable{
@@ -134,6 +124,8 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Client.ShowWebpage( URL )
 	end
 
+	Window:PopUp( WebPageWindow )
+
 	return Window
 end
 
@@ -153,17 +145,8 @@ function Shine:OpenWebpage( URL, TitleText )
 	local WidthMult = Max( W / 1920, 1 )
 	local HeightMult = Max( H / 1080, 1 )
 
-	local TitleBarH = 32
-	local Font = Fonts.kAgencyFB_Small
-	local TextScale
-	if H > SGUI.ScreenHeight.Normal and H <= SGUI.ScreenHeight.Large then
-		TitleBarH = TitleBarH * 1.5
-		Font = Fonts.kAgencyFB_Medium
-	elseif H > SGUI.ScreenHeight.Large then
-		TitleBarH = TitleBarH * 2.5
-		Font = Fonts.kAgencyFB_Huge
-		TextScale = Vector( 0.6, 0.6, 0 )
-	end
+	local TitleBarH = Units.HighResScaled( 32 ):GetValue()
+	local Font, TextScale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
 
 	local WindowWidth = W * 0.8
 	local WindowHeight = H * 0.8 + TitleBarH
@@ -178,6 +161,10 @@ function Shine:OpenWebpage( URL, TitleText )
 
 	TitleText = TitleText and Locale:GetPhrase( "Core", TitleText )
 	Window:AddTitleBar( TitleText or Locale:GetPhrase( "Core", "MESSAGE_OF_THE_DAY" ), Font, TextScale )
+	Window:SetBoxShadow( {
+		BlurRadius = 16,
+		Colour = Colour( 0, 0, 0, 0.75 )
+	} )
 
 	self.ActiveWebPage = Window
 
@@ -202,35 +189,43 @@ function Shine:OpenWebpage( URL, TitleText )
 	}
 
 	function OpenInSteam:DoClick()
-		local Popup = OpenInSteamPopup( URL, W, H, TitleBarH, Font, TextScale )
+		local Popup = OpenInSteamPopup( URL, W, H, TitleBarH, Font, TextScale, Window )
 
 		Window:DeleteOnRemove( Popup )
 	end
 
-	local LoadingText = Window:Add( "Label" )
-	LoadingText:SetupFromTable{
+	local LoadingIndicator = Window:Add( "ProgressWheel" )
+	LoadingIndicator:SetupFromTable{
 		Anchor = "CentreMiddle",
-		Text = Locale:GetPhrase( "Core", "LOADING" ),
-		Font = LoadingFont,
-		TextAlignmentX = GUIItem.Align_Center,
-		TextAlignmentY = GUIItem.Align_Center
+		HotSpot = "CentreMiddle",
+		Size = Vector2( WindowWidth * 0.1, WindowWidth * 0.1 ),
+		Indeterminate = true
 	}
 
-	local WebpageWidth = WindowWidth - 10
-	local WebpageHeight = WindowHeight - 10 - TitleBarH
+	local BarPadding = Units.HighResScaled( 5 ):GetValue()
+	local WebpageWidth = WindowWidth - BarPadding * 2
+	local WebpageHeight = WindowHeight - BarPadding * 3 - TitleBarH * 2
+
+	local WebpageControls = Window:Add( "WebpageControls" )
+	WebpageControls:SetPos( Vector2( BarPadding, TitleBarH + BarPadding ) )
+	WebpageControls:SetSize( Vector2( WindowWidth - BarPadding * 2, TitleBarH ) )
+	WebpageControls:SetFont( Font )
+	WebpageControls:SetTextScale( TextScale )
 
 	local Webpage = Window:Add( "Webpage" )
-	Webpage:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + TitleBarH * 0.5, 0 ) )
-	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
+	Webpage:SetPos( Vector2( BarPadding, TitleBarH * 2 + BarPadding * 2 ) )
+	-- Replace the initial data-URL to avoid being able to go back to it.
+	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight, true )
 
-	-- Hide/show the loading text depending on whether the page is actually loading.
-	-- Some pages may have transparency which would make the loading text visible behind them.
+	WebpageControls:SetWebpage( Webpage )
+
+	-- Hide/show the loading indicator depending on whether the page is actually loading.
+	-- Some pages may have transparency which would make the loading indicator visible behind them.
 	Binder():FromElement( Webpage, "IsLoading" )
-		:ToElement( LoadingText, "IsVisible" )
+		:ToElement( LoadingIndicator, "IsVisible" )
 		:BindProperty()
 
-	SGUI:EnableMouse( true )
+	SGUI:EnableMouse( true, Window )
 
 	return Webpage
 end
@@ -238,7 +233,7 @@ end
 function Shine:CloseWebPage()
 	if not SGUI.IsValid( self.ActiveWebPage ) then return end
 
-	SGUI:EnableMouse( false )
+	SGUI:EnableMouse( false, self.ActiveWebPage )
 
 	self.ActiveWebPage:Destroy()
 	self.ActiveWebPage = nil

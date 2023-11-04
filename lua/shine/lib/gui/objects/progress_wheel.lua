@@ -12,8 +12,13 @@ local SGUI = Shine.GUI
 
 local ProgressWheel = {}
 
-SGUI.AddBoundProperty( ProgressWheel, "Colour", { "LeftHalf:SetColor", "RightHalf:SetColor" } )
+-- Override the base method to ensure only visible elements get alpha inheritance set.
 SGUI.AddBoundProperty( ProgressWheel, "InheritsParentAlpha", { "Background", "LeftHalf", "RightHalf" } )
+
+local SetColour = SGUI.AddBoundColourProperty( ProgressWheel, "Colour", {
+	"LeftHalf:SetColor",
+	"RightHalf:SetColor"
+}, nil, "self:GetParentTargetAlpha()" )
 
 SGUI.AddProperty( ProgressWheel, "Angle", 0 )
 SGUI.AddProperty( ProgressWheel, "AngleOffset", 0 )
@@ -29,6 +34,8 @@ function ProgressWheel:Initialise()
 
 	self.LeftMask = self:MakeGUIItem()
 	self.LeftMask:SetIsStencil( true )
+	-- Disable this as it breaks the stencil, it may be enabled if this is within an alpha propagating tree.
+	self.LeftMask:SetInheritsParentAlpha( false )
 	self.LeftMask:SetAnchor( 0.5, 0.5 )
 	self.LeftMask:SetRotationOffsetNormalized( Vector2( 0, 0.5 ) )
 
@@ -38,6 +45,8 @@ function ProgressWheel:Initialise()
 
 	self.RightMask = self:MakeGUIItem()
 	self.RightMask:SetIsStencil( true )
+	-- As above, make sure both masks don't have any alpha inherited.
+	self.RightMask:SetInheritsParentAlpha( false )
 	self.RightMask:SetAnchor( 0.5, 0.5 )
 	self.RightMask:SetRotationOffsetNormalized( Vector2( 1, 0.5 ) )
 
@@ -65,6 +74,26 @@ function ProgressWheel:Initialise()
 	self.SpinDirection = 1
 
 	self:SetVisibleFraction( 0 )
+end
+
+function ProgressWheel:SetColour( Colour )
+	if not SetColour( self, Colour ) then return false end
+
+	-- Ensure this colour's alpha gets used as the control's target alpha (the background remains fixed at 1, but
+	-- changing this makes it easier to forward alpha changes).
+	self:SetTargetAlpha( Colour.a )
+
+	return true
+end
+
+function ProgressWheel:ApplyCalculatedAlphaToBackground( Alpha )
+	if not self.Colour then return end
+
+	-- Apply the alpha compensation to the visible elements instead of the background item.
+	-- The alpha value here is correct due to setting the target alpha above.
+	local Colour = SGUI.ColourWithAlpha( self.Colour, Alpha )
+	self.LeftHalf:SetColor( Colour )
+	self.RightHalf:SetColor( Colour )
 end
 
 function ProgressWheel:SetWheelTexture( Params )
@@ -233,6 +262,17 @@ function ProgressWheel:SetAnimateLoading( AnimateLoading )
 	self:EaseValue( self.Background, self.VisibleFraction, ExpandedSize, 0, SpinDuration, Collapse, FractionEaser )
 end
 
+-- Enable this for a generic loading spinner where progress is not known.
+function ProgressWheel:SetIndeterminate( Indeterminate )
+	if Indeterminate then
+		self:SetAnimateLoading( true )
+		self:SetSpinRate( -math.pi * 2 )
+	else
+		self:SetAnimateLoading( false )
+		self:SetSpinRate( 0 )
+	end
+end
+
 function ProgressWheel:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
@@ -240,7 +280,7 @@ function ProgressWheel:Think( DeltaTime )
 	self:CallOnChildren( "Think", DeltaTime )
 
 	local SpinRate = self:GetSpinRate()
-	if SpinRate and SpinRate ~= 0 then
+	if SpinRate ~= 0 then
 		self:SetAngle( self:GetAngle() + DeltaTime * SpinRate )
 	end
 end

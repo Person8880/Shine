@@ -9,20 +9,20 @@ local Vector2 = Vector2
 local Vertical = {}
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
-
-function Vertical:GetStartPos( Pos, Size, Padding, Alignment, Context )
-	if Alignment == LayoutAlignment.CENTRE then
-		local X = Pos.x + Padding[ 1 ]
-		local Y = Pos.y + Size.y * 0.5 - Context.CentreAlignedSize * 0.5
-
-		return X, Y
+local StartPositionGetters = {
+	[ LayoutAlignment.MIN ] = function( Pos, Size, Context )
+		return Context.MinX, Context.MinY
+	end,
+	[ LayoutAlignment.CENTRE ] = function( Pos, Size, Context )
+		return Context.MinX, Pos.y + Size.y * 0.5 - Context.CentreAlignedSize * 0.5
+	end,
+	[ LayoutAlignment.MAX ] = function( Pos, Size, Context )
+		return Context.MinX, Context.MaxY
 	end
+}
 
-	local IsMin = Alignment == LayoutAlignment.MIN
-	local X = Pos.x + Padding[ 1 ]
-	local Y = IsMin and ( Pos.y + Padding[ 2 ] ) or ( Pos.y + Size.y - Padding[ 4 ] )
-
-	return X, Y
+function Vertical:GetStartPos( Pos, Size, Alignment, Context )
+	return StartPositionGetters[ Alignment ]( Pos, Size, Context )
 end
 
 function Vertical:GetFillSize( Size )
@@ -34,19 +34,28 @@ function Vertical:GetMinMargin( Margin )
 end
 
 function Vertical:GetMarginSize( Margin )
-	return Margin[ 2 ] + Margin[ 4 ]
+	return Margin[ 6 ]
 end
 
-function Vertical:SetElementPos( Element, X, Y, Margin, LayoutSize )
-	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
-	if CrossAxisAlignment == LayoutAlignment.CENTRE then
-		X = X + LayoutSize.x * 0.5 - Element:GetSize().x * 0.5
-	elseif CrossAxisAlignment == LayoutAlignment.MAX then
-		X = X + LayoutSize.x - Element:GetSize().x
+local CrossAxisAlignmentGetters = {
+	[ LayoutAlignment.MIN ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X, Y
+	end,
+	[ LayoutAlignment.CENTRE ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X + LayoutSize.x * 0.5 - ElementSize.x * 0.5, Y
+	end,
+	[ LayoutAlignment.MAX ] = function( Element, X, Y, LayoutSize, ElementSize )
+		return X + LayoutSize.x - ElementSize.x, Y
 	end
+}
+
+function Vertical:SetElementPos( Element, X, Y, Margin, LayoutSize, ElementSize )
+	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
+
+	X, Y = CrossAxisAlignmentGetters[ CrossAxisAlignment ]( Element, X, Y, LayoutSize, ElementSize )
 
 	local LayoutOffset = Element:GetLayoutOffset()
-	Element:SetPos( Vector2( X + Margin[ 1 ] + LayoutOffset.x, Y + LayoutOffset.y ) )
+	Element:SetLayoutPos( Vector2( X + Margin[ 1 ] + LayoutOffset.x, Y + LayoutOffset.y ) )
 end
 
 function Vertical:GetMaxMargin( Margin )
@@ -57,28 +66,20 @@ function Vertical:GetElementSizeOffset( Size )
 	return 0, Size.y
 end
 
-function Vertical:GetFillElementWidth( Element, Width, FillSizePerElement )
-	return Width
+function Vertical:GetCrossAxisSize( Size )
+	return Size.x
 end
 
-function Vertical:GetFillElementHeight( Element, Height, FillSizePerElement )
+function Vertical:GetFillElementWidth( Element, FillSizePerElement, ParentWidth, ParentHeight )
+	return Element:GetComputedSize( 1, ParentWidth, ParentHeight )
+end
+
+function Vertical:GetFillElementHeight( Element, FillSizePerElement, ParentHeight, ParentWidth )
 	return FillSizePerElement
 end
 
-function Vertical:GetFillElementSize( Element, Width, Height, FillSizePerElement )
-	return Vector2( Width, FillSizePerElement )
-end
-
-local ContentSizes = {
-	function( self )
-		return self:GetMaxSizeAlongAxis( 1 )
-	end,
-	function( self )
-		return self.BaseClass.GetContentSizeForAxis( self, 2 )
-	end
-}
-function Vertical:GetContentSizeForAxis( Axis )
-	return ContentSizes[ Axis ]( self )
+function Vertical:ApplyContentSize( MainAxisSize, CrossAxisSize )
+	return CrossAxisSize, MainAxisSize
 end
 
 Shine.GUI.Layout:RegisterType( "Vertical", Vertical, "Directional" )

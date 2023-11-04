@@ -19,13 +19,14 @@ local include = Script.Load
 local Min = math.min
 local setmetatable = setmetatable
 local StringFormat = string.format
-local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
 SGUI.Shaders = {
 	-- A shader that causes a GUIItem to be invisible, but still be able to contribute an alpha multiplier.
-	Invisible = PrecacheAsset "shaders/shine/gui_none.surface_shader"
+	Invisible = PrecacheAsset "shaders/shine/gui_none.surface_shader",
+	-- A shader that can be used to add rounded corners to boxes.
+	RoundedRect = PrecacheAsset "shaders/shine/gui_rounded_rect.surface_shader"
 }
 
 -- Useful functions for colours.
@@ -168,18 +169,21 @@ do
 				Name = Name
 			} )
 		end
+
+		return Table[ TableSetter ], Table[ TableGetter ]
 	end
 
 	local BoundCallTemplate = [[do
 		local Object = self.{FieldName}
 		if Object then Object:{Setter}( Value ) end
 	end]]
+	local AliasCallTemplate = [[self:{Setter}( Value )]]
 
 	local StringExplode = string.Explode
 	local unpack = unpack
 
 	local function GetBindingInfo( BoundObject, PropertyName )
-		if IsType( BoundObject, "string" ) then
+		if not IsType( BoundObject, "table" ) then
 			BoundObject = { BoundObject }
 		end
 
@@ -192,10 +196,19 @@ do
 				local FieldName, Setter = unpack( StringExplode( Entry, ":", true ) )
 				Setter = Setter or "Set"..PropertyName
 
-				BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( BoundCallTemplate, {
-					Setter = Setter,
-					FieldName = FieldName
-				} )
+				if FieldName == "self" then
+					-- Special case, aliasing another setter on the object. No control should ever have a field called
+					-- 'self'.
+					BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( AliasCallTemplate, {
+						Setter = Setter
+					} )
+				else
+					-- Pointing at a setter on a field.
+					BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( BoundCallTemplate, {
+						Setter = Setter,
+						FieldName = FieldName
+					} )
+				end
 			else
 				Callbacks[ #Callbacks + 1 ] = Entry
 			end
@@ -239,6 +252,16 @@ do
 		return true
 	end]]
 
+	local function BuildCallbacks( Callbacks )
+		local CallbackVariables = {}
+		local CallbackLines = {}
+		for i = 1, #Callbacks do
+			CallbackVariables[ i ] = StringFormat( "Callback%d", i )
+			CallbackLines[ i ] = StringFormat( CallbacksCallTemplate, i )
+		end
+		return CallbackLines, CallbackVariables
+	end
+
 	--[[
 		Adds Get/Set property methods that pass through the value to a field
 		on the table as well as storing it.
@@ -249,7 +272,8 @@ do
 		local BoundFields, Callbacks = GetBindingInfo( BoundObject, Name )
 
 		local GetterSource = GetGetterSource( Name )
-		Table[ "Get"..Name ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
+		local TableGetter = "Get"..Name
+		Table[ TableGetter ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
 			Name = Name
 		} )
 
@@ -259,12 +283,7 @@ do
 
 		if #Callbacks > 0 then
 			-- Unroll the loop upfront.
-			local CallbackVariables = {}
-			local CallbackLines = {}
-			for i = 1, #Callbacks do
-				CallbackVariables[ i ] = StringFormat( "Callback%d", i )
-				CallbackLines[ i ] = StringFormat( CallbacksCallTemplate, i )
-			end
+			local CallbackLines, CallbackVariables = BuildCallbacks( Callbacks )
 
 			Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( BoundWithCallbacksTemplate, SetterSource, {
 				Name = Name,
@@ -280,6 +299,54 @@ do
 				Modifiers = ModifierLines
 			} )
 		end
+
+		return Table[ TableSetter ], Table[ TableGetter ]
+	end
+
+	local CompensatedAlphaSetterTemplate = [[local Setter{CallbackVariables} = ...
+	return function( self, Value )
+		if not Setter( self, Value ) then return false end
+
+		if self:ShouldAutoInheritAlpha() then
+			Value = self:ApplyAlphaCompensationToChildItemColour( Value, {ParentTargetAlpha} )
+		end
+
+		{BoundFields}
+
+		{Callbacks}
+
+		return true
+	end]]
+
+	local function WrapColourSetterWithAlphaCompensation( FieldName, Setter, BoundObject, ParentTargetAlphaExpression )
+		local BoundFields, Callbacks = GetBindingInfo( BoundObject, Name )
+
+		ParentTargetAlphaExpression = ParentTargetAlphaExpression or "self:GetTargetAlpha()"
+
+		local SetterSource = GetSetterSource( FieldName )
+		local CallbackLines, CallbackVariables = BuildCallbacks( Callbacks )
+
+		return CodeGen.GenerateTemplatedFunction( CompensatedAlphaSetterTemplate, SetterSource, {
+			BoundFields = BoundFields,
+			CallbackVariables = #CallbackVariables > 0 and ( ", "..TableConcat( CallbackVariables, ", " ) ) or "",
+			Callbacks = TableConcat( CallbackLines, "\n" ),
+			ParentTargetAlpha = ParentTargetAlphaExpression
+		}, Setter, unpack( Callbacks ) )
+	end
+
+	--[[
+		Adds a bound colour property to the given control table.
+
+		This is a specialisation of AddBoundProperty that adds automatic support for alpha inheritance.
+
+		The value passed through to the bound object(s) will have its alpha field altered to compensate for the parent
+		element's target alpha if automatic alpha compensation is enabled.
+	]]
+	function SGUI.AddBoundColourProperty( Table, Name, BoundObject, Modifiers, ParentTargetAlphaExpression )
+		local Setter, Getter = SGUI.AddProperty( Table, Name, nil, Modifiers )
+		Setter = WrapColourSetterWithAlphaCompensation( Name, Setter, BoundObject, ParentTargetAlphaExpression )
+		Table[ SetterKeys[ Name ] ] = Setter
+		return Setter, Getter
 	end
 end
 
@@ -292,100 +359,16 @@ do
 	end
 end
 
+function SGUI.IsApproximatelyGreaterEqual( Left, Right )
+	-- Account for tiny floating point errors.
+	return Left >= Right - 1e-4
+end
+
 do
-	local Max = math.max
-	local StringExplode = string.Explode
-	local StringUTF8Encode = string.UTF8Encode
-	local TableConcat = table.concat
+	local Wrapping = require "shine/lib/gui/util/wrapping"
 
-	--[[
-		Wraps text to fit the size limit. Used for long words...
-
-		Returns two strings, first one fits entirely on one line, the other may not, and should be
-		added to the next word.
-	]]
-	local function TextWrap( Label, Text, XPos, MaxWidth )
-		local i = 1
-		local FirstLine = Text
-		local SecondLine = ""
-		local Chars = StringUTF8Encode( Text )
-		local Length = #Chars
-
-		-- Character by character, extend the text until it exceeds the width limit.
-		repeat
-			local CurText = TableConcat( Chars, "", 1, i )
-
-			-- Once it reaches the limit, we go back a character, and set our first and second line results.
-			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				-- The max makes sure we're cutting at least one character out of the text,
-				-- to avoid an infinite loop.
-				FirstLine = TableConcat( Chars, "", 1, Max( i - 1, 1 ) )
-				SecondLine = TableConcat( Chars, "", Max( i, 2 ) )
-
-				break
-			end
-
-			i = i + 1
-		until i > Length
-
-		return FirstLine, SecondLine
-	end
-
-	--[[
-		Word wraps text, adding new lines where the text exceeds the width limit.
-
-		This time, it shouldn't freeze the game...
-	]]
-	function SGUI.WordWrap( Label, Text, XPos, MaxWidth, MaxLines )
-		local Words = StringExplode( Text, " ", true )
-		local StartIndex = 1
-		local Lines = {}
-		local i = 1
-
-		-- While loop, as the size of the Words table may increase.
-		while i <= #Words do
-			local CurText = TableConcat( Words, " ", StartIndex, i )
-
-			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				-- This means one word is wider than the whole chatbox, so we need to cut it part way through.
-				if StartIndex == i then
-					local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
-
-					Lines[ #Lines + 1 ] = FirstLine
-
-					-- Add the second line as the next word, or as a new next word if none exists.
-					if Words[ i + 1 ] then
-						TableInsert( Words, i + 1, SecondLine )
-					else
-						-- This is just a micro-optimisation really, it's slightly quicker than table.insert.
-						Words[ i + 1 ] = SecondLine
-					end
-
-					StartIndex = i + 1
-				else
-					Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
-
-					-- We need to jump back a step, as we've still got another word to check.
-					StartIndex = i
-					i = i - 1
-				end
-
-				if MaxLines and #Lines >= MaxLines then
-					break
-				end
-			elseif i == #Words then -- We're at the end!
-				Lines[ #Lines + 1 ] = CurText
-			end
-
-			i = i + 1
-		end
-
-		Label:SetText( TableConcat( Lines, "\n" ) )
-
-		if MaxLines then
-			return TableConcat( Words, " ", StartIndex )
-		end
-	end
+	-- For backwards compatibility, export word wrapping under SGUI.
+	SGUI.WordWrap = Wrapping.WordWrap
 end
 
 function SGUI.TenEightyPScale( Value )
@@ -1064,39 +1047,51 @@ do
 		end
 	}
 
+	local function ShouldAddElement( ElementDef )
+		-- Elements can define a condition, either as a plain boolean or a method. This makes it easier to conditionally
+		-- add elements in the middle of a list of children.
+		return ElementDef.If ~= false and not ( Shine.IsCallable( ElementDef.If ) and not ElementDef:If() )
+	end
+
 	local function BuildChildren( Context, Parent, Tree, GlobalProps, Level )
 		local DeferredBindings = Context.DeferredBindings
 		local Elements = Context.Elements
 
 		for i = 1, #Tree do
 			local ElementDef = Tree[ i ]
-			local FactoryFunc = ElementFactories[ ElementDef.Type or "Control" ]
-			Shine.AssertAtLevel( FactoryFunc, "Unknown element type in tree: %s", 4 + Level, ElementDef.Type )
+			if ShouldAddElement( ElementDef ) then
+				local FactoryFunc = ElementFactories[ ElementDef.Type or "Control" ]
+				Shine.AssertAtLevel( FactoryFunc, "Unknown element type in tree: %s", 4 + Level, ElementDef.Type )
 
-			local Element = FactoryFunc( ElementDef, Parent )
+				local Element = FactoryFunc( ElementDef, Parent )
 
-			if GlobalProps then
-				Element:SetupFromTable( GlobalProps )
-			end
+				if GlobalProps then
+					Element:SetupFromTable( GlobalProps )
+				end
 
-			if ElementDef.Props then
-				Element:SetupFromTable( ElementDef.Props )
-			end
+				if ElementDef.Props then
+					Element:SetupFromTable( ElementDef.Props )
+				end
 
-			if ElementDef.ID then
-				Elements[ ElementDef.ID ] = Element
-			end
+				if ElementDef.ID then
+					Elements[ ElementDef.ID ] = Element
+				end
 
-			if ElementDef.Bindings then
-				ProcessBindings( Element, ElementDef.Bindings, DeferredBindings )
-			end
+				if ElementDef.Bindings then
+					ProcessBindings( Element, ElementDef.Bindings, DeferredBindings )
+				end
 
-			if ElementDef.PropertyChangeListeners then
-				ProcessPropertyChangeListeners( Element, ElementDef.PropertyChangeListeners )
-			end
+				if ElementDef.PropertyChangeListeners then
+					ProcessPropertyChangeListeners( Element, ElementDef.PropertyChangeListeners )
+				end
 
-			if ElementDef.Children then
-				BuildChildren( Context, Element, ElementDef.Children, GlobalProps, Level + 1 )
+				if ElementDef.Children then
+					BuildChildren( Context, Element, ElementDef.Children, GlobalProps, Level + 1 )
+				end
+
+				if Shine.IsCallable( ElementDef.OnBuilt ) then
+					ElementDef:OnBuilt( Element, Elements )
+				end
 			end
 		end
 	end
@@ -1184,7 +1179,7 @@ do
 	local ValidityKey = "IsValid"
 	local function CheckDestroyed( self, Key )
 		local Destroyed = rawget( self, "__Destroyed" )
-		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
+		if Destroyed and Key ~= ValidityKey and Key ~= "DebugName" and Destroyed < SGUI.FrameNumber() then
 			local Caller = DebugGetInfo( 2, "f" ).func
 			-- Allow access in __tostring(), otherwise the element can't be printed.
 			if Caller ~= getmetatable( self ).__tostring then
@@ -1307,6 +1302,9 @@ do
 	end )
 end
 
+-- Clock used for high-precision tasks such as animations.
+SGUI.GetTime = Shared.GetSystemTimeReal
+
 Hook.Add( "PlayerKeyPress", "UpdateSGUI", function( Key, Down )
 	if SGUI:CallEvent( false, "PlayerKeyPress", Key, Down ) then
 		return true
@@ -1344,6 +1342,10 @@ local ScrH = Client.GetScreenHeight
 
 function SGUI.GetScreenSize()
 	return ScrW(), ScrH()
+end
+
+function SGUI.IsHighRes()
+	return Min( SGUI.GetScreenSize() ) > 1080
 end
 
 local CreateItem = GUI.CreateItem
@@ -1401,6 +1403,12 @@ local function SetupRenderDeviceResetCheck()
 			Hook.Broadcast( "OnRenderDeviceReset" )
 		end
 	end )
+
+	Shine:RegisterClientCommand( "sh_sgui_simulate_render_reset", function()
+		if not Shared.GetDevMode() then return end
+
+		Hook.Broadcast( "OnRenderDeviceReset" )
+	end )
 end
 
 local IsMainMenuOpen = MainMenu_GetIsOpened
@@ -1414,13 +1422,21 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	ScrH = Client.GetScreenHeight
 	IsMainMenuOpen = MainMenu_GetIsOpened
 
+	if IsType( GetLayerConstant, "function" ) then
+		-- Make sure SGUI renders above the top bar HUD (for whatever reason, this was put way above the rest of the
+		-- HUD...)
+		SGUI.BaseLayer = GetLayerConstant( "Hud_TopBar", 500 ) + 1
+	end
+
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
-	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
+	Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 
 	SetupRenderDeviceResetCheck()
-end )
+
+	Hook.BroadcastOnce( "OnSGUILoaded" )
+end, Hook.MAX_PRIORITY )
 
 Hook.CallAfterFileLoad( "lua/Commander_Client.lua", function()
 	local GetMouseIsOverUI = CommanderUI_GetMouseIsOverUI

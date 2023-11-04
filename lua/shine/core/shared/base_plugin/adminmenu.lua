@@ -2,7 +2,7 @@
 	Admin menu module.
 ]]
 
-if Server then return end
+if not Client then return end
 
 local Shine = Shine
 

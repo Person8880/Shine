@@ -311,6 +311,44 @@ function Shine.TypeCheckConfig( Name, Config, DefaultConfig, Recursive )
 	return Edited
 end
 
+--[[
+	Applies a migration to the given config, modifying it in-place to match the new version based on a given list of
+	migration steps.
+
+	Inputs:
+		1. The config object to migrate.
+		2. Parameters providing:
+			"CurrentVersion" - The current version of the given configuration object (before migration).
+			"NewVersion" - a string denoting the new version of the configuration.
+			"MigrationSteps" - an optional table of migration steps, each with a "VersionTo" field indicating the
+			version they migrate to, and an "Apply" function that takes the config object and migrates it in-place.
+]]
+function Shine.ApplyConfigMigration( Config, Params )
+	Config.__Version = Params.NewVersion
+
+	if Params.MigrationSteps then
+		local StartingStep
+		local EndStep = #Params.MigrationSteps
+
+		-- Find the first step that migrates to a version later than the config's current version.
+		for i = 1, EndStep do
+			local Step = Params.MigrationSteps[ i ]
+			if Shine.VersionHolder( Step.VersionTo ) > Params.CurrentVersion then
+				StartingStep = i
+				break
+			end
+		end
+
+		if StartingStep then
+			for i = StartingStep, EndStep do
+				Params.MigrationSteps[ i ].Apply( Config )
+			end
+		end
+	end
+
+	return Config
+end
+
 do
 	local Clamp = math.Clamp
 	local Floor = math.floor
@@ -323,6 +361,12 @@ do
 	local TableShallowCopy = table.ShallowCopy
 	local tonumber = tonumber
 	local unpack = unpack
+
+	local Print = Print
+	if Predict then
+		-- Suppress output from the prediction VM to avoid double-printing.
+		Print = function() end
+	end
 
 	local ValidationContext = Shine.TypeDef()
 	function ValidationContext:Init( MessagePrefix, Config )
@@ -368,6 +412,10 @@ do
 			end
 		end
 		return TableConcat( Output )
+	end
+
+	function ValidationContext:PrintErrorAtPath( ErrorMessage )
+		return Print( ErrorMessage, self:GetCurrentPath() )
 	end
 
 	local Validator = {}
@@ -467,6 +515,34 @@ do
 		}
 	end
 
+	function Validator.HasLength( ExpectedLength, DefaultElement )
+		return {
+			Check = function( Value )
+				return not IsType( Value, "table" ) or #Value ~= ExpectedLength
+			end,
+			Fix = function( Value )
+				if not IsType( Value, "table" ) then
+					return nil
+				end
+
+				if #Value > ExpectedLength then
+					for i = ExpectedLength + 1, #Value do
+						Value[ i ] = nil
+					end
+				else
+					for i = #Value + 1, ExpectedLength do
+						Value[ i ] = DefaultElement
+					end
+				end
+
+				return Value
+			end,
+			Message = function()
+				return StringFormat( "%%s must have %d element%s", ExpectedLength, ExpectedLength == 1 and "" or "s" )
+			end
+		}
+	end
+
 	function Validator.ValidateField( Name, Rule, Options )
 		Shine.TypeCheck( Rule, "table", 2, "ValidateField" )
 		Shine.TypeCheck( Options, { "table", "nil" }, 3, "ValidateField" )
@@ -480,18 +556,18 @@ do
 			Check = function( Value, Context )
 				if not IsType( Value, "table" ) then return true end
 
-				local NeedsFix, CanonicalValue = Context:WithField( Name, Predicate, Value[ Name ], Context )
+				local NeedsFix, CanonicalValue, Data = Context:WithField( Name, Predicate, Value[ Name ], Context )
 				if not NeedsFix and CanonicalValue ~= nil then
 					local Copy = TableShallowCopy( Value )
 					Copy[ Name ] = CanonicalValue
 					CanonicalValue = Copy
 				end
 
-				return NeedsFix, CanonicalValue
+				return NeedsFix, CanonicalValue, Data
 			end,
-			Fix = function( Value, Context )
+			Fix = function( Value, Context, Data )
 				if not IsType( Value, "table" ) then
-					local Fixed = Context:WithField( Name, FixFunc, nil, Context )
+					local Fixed = Context:WithField( Name, FixFunc, nil, Context, Data )
 					if Fixed ~= nil then
 						return {
 							[ Name ] = Fixed
@@ -500,7 +576,7 @@ do
 					return nil
 				end
 
-				local FixedValue = Context:WithField( Name, FixFunc, Value[ Name ], Context )
+				local FixedValue = Context:WithField( Name, FixFunc, Value[ Name ], Context, Data )
 				if FixedValue == nil and DeleteIfFieldInvalid then
 					return nil
 				end
@@ -509,7 +585,7 @@ do
 
 				return Value
 			end,
-			Message = function()
+			Message = MessageFunc and function()
 				return StringFormat( "%s on field %s", MessageFunc(), Name )
 			end
 		}
@@ -542,40 +618,44 @@ do
 		return {
 			Check = function( Value, Context )
 				local Passes = true
-				for i = 1, #Value do
+				local FailedIndices = { [ 0 ] = #Value }
+
+				for i = 1, FailedIndices[ 0 ] do
 					Context:PushField( i )
 
-					local NeedsFix, CanonicalValue = Predicate( Value[ i ], Context )
+					local NeedsFix, CanonicalValue, Data = Predicate( Value[ i ], Context )
 					if NeedsFix then
-						Print( Context.MessagePrefix..MessageFunc(), Context:GetCurrentPath() )
+						if MessageFunc then
+							Context:PrintErrorAtPath( Context.MessagePrefix..MessageFunc() )
+						end
 						Passes = false
+						if Data == nil then Data = true end
+						FailedIndices[ i ] = Data
 					elseif CanonicalValue ~= nil then
 						Value[ i ] = CanonicalValue
 					end
 
 					Context:PopField()
 				end
-				return not Passes
-			end,
-			Fix = function( Value, Context )
-				for i = #Value, 1, -1 do
-					Context:PushField( i )
 
-					if Predicate( Value[ i ], Context ) then
-						local Fixed = FixFunc( Value[ i ], Context )
+				return not Passes, nil, FailedIndices
+			end,
+			Fix = function( Value, Context, FailedIndices )
+				for i = FailedIndices[ 0 ], 1, -1 do
+					if FailedIndices[ i ] ~= nil then
+						Context:PushField( i )
+
+						local Fixed = FixFunc( Value[ i ], Context, FailedIndices[ i ] )
 						if Fixed ~= nil then
 							Value[ i ] = Fixed
 						else
 							TableRemove( Value, i )
 						end
-					end
 
-					Context:PopField()
+						Context:PopField()
+					end
 				end
 				return Value
-			end,
-			Message = function()
-				return "Elements of "..MessageFunc()
 			end
 		}
 	end
@@ -590,14 +670,19 @@ do
 		return {
 			Check = function( TableValue, Context )
 				local Passes = true
+				local FailedKeys = {}
 
 				for Key, Value in pairs( TableValue ) do
 					Context:PushField( Key )
 
-					local NeedsFix, CanonicalValue = Predicate( Value, Context )
+					local NeedsFix, CanonicalValue, Data = Predicate( Value, Context )
 					if NeedsFix then
-						Print( Context.MessagePrefix..MessageFunc(), Context:GetCurrentPath() )
+						if MessageFunc then
+							Context:PrintErrorAtPath( Context.MessagePrefix..MessageFunc() )
+						end
 						Passes = false
+						if Data == nil then Data = true end
+						FailedKeys[ Key ] = Data
 					elseif CanonicalValue ~= nil then
 						TableValue[ Key ] = CanonicalValue
 					end
@@ -605,28 +690,23 @@ do
 					Context:PopField()
 				end
 
-				return not Passes
+				return not Passes, nil, FailedKeys
 			end,
-			Fix = function( TableValue, Context )
-				for Key, Value in pairs( TableValue ) do
+			Fix = function( TableValue, Context, FailedKeys )
+				for Key, Data in pairs( FailedKeys ) do
 					Context:PushField( Key )
 
-					if Predicate( Value, Context ) then
-						local Fixed = FixFunc( Value, Context )
-						if Fixed ~= nil then
-							TableValue[ Key ] = Fixed
-						else
-							TableValue[ Key ] = nil
-						end
+					local Fixed = FixFunc( TableValue[ Key ], Context, Data )
+					if Fixed ~= nil then
+						TableValue[ Key ] = Fixed
+					else
+						TableValue[ Key ] = nil
 					end
 
 					Context:PopField()
 				end
 
 				return TableValue
-			end,
-			Message = function()
-				return "Elements of "..MessageFunc()
 			end
 		}
 	end
@@ -680,22 +760,92 @@ do
 		}
 	end
 
-	-- If the value is of the given type, then it will be validated with the given predicate.
-	function Validator.IfType( Type, CheckPredicate, FixFunction, MessageSupplier )
-		if IsType( CheckPredicate, "table" ) then
-			FixFunction = CheckPredicate.Fix
-			MessageSupplier = CheckPredicate.Message
-			CheckPredicate = CheckPredicate.Check
+	-- If the value is of the given type, then it will be validated with the given predicate(s).
+	function Validator.IfType( Type, ... )
+		local Rules = { ... }
+		if IsType( Rules[ 1 ], "function" ) then
+			-- Backwards compatibility.
+			Rules = {
+				{
+					Check = Rules[ 1 ],
+					Fix = Rules[ 2 ],
+					Message = Rules[ 3 ]
+				}
+			}
 		end
+
+		for i = 1, #Rules do
+			local Rule = Rules[ i ]
+			Rules[ i ] = {
+				Check = function( Value, Context )
+					if not IsType( Value, Type ) then
+						return false
+					end
+					return Rule.Check( Value, Context )
+				end,
+				Fix = Rule.Fix,
+				Message = Rule.Message
+			}
+		end
+
+		return unpack( Rules )
+	end
+
+	function Validator.IfFieldPresent( Field, ... )
+		local Rules = { ... }
+
+		for i = 1, #Rules do
+			local Rule = Rules[ i ]
+			Rules[ i ] = {
+				Check = function( Value, Context )
+					if Value[ Field ] == nil then
+						return false
+					end
+					return Rule.Check( Value, Context )
+				end,
+				Fix = Rule.Fix,
+				Message = Rule.Message
+			}
+		end
+
+		return unpack( Rules )
+	end
+
+	function Validator.Exclusive( FieldA, FieldB, Options )
 		return {
 			Check = function( Value, Context )
-				if not IsType( Value, Type ) then
-					return false
+				if Value[ FieldA ] ~= nil and Value[ FieldB ] ~= nil then
+					return true
 				end
-				return CheckPredicate( Value, Context )
+
+				if Options and Options.FailIfBothMissing and Value[ FieldA ] == nil and Value[ FieldB ] == nil then
+					return true
+				end
+
+				return false
 			end,
-			Fix = FixFunction,
-			Message =  MessageSupplier
+			Fix = function( Value )
+				if Options then
+					if
+						Options.DeleteIfInvalid
+						or ( Options.FailIfBothMissing and Value[ FieldA ] == nil and Value[ FieldB ] == nil )
+					then
+						return nil
+					end
+
+					if Options.FieldToKeep == FieldA then
+						Value[ FieldB ] = nil
+						return Value
+					end
+				end
+
+				Value[ FieldA ] = nil
+
+				return Value
+			end,
+			Message = function()
+				return StringFormat( "%%s must specify only one of %s or %s", FieldA, FieldB )
+			end
 		}
 	end
 
@@ -715,6 +865,7 @@ do
 
 		local Checks = { ... }
 		if IsType( Checks[ 1 ], "function" ) then
+			-- Backwards compatibility.
 			Checks = {
 				{
 					Check = Checks[ 1 ],
@@ -737,13 +888,13 @@ do
 
 					local Path = StringExplode( TableField, ".", true )
 					local Value = TableGetField( Config, Path )
-					local NeedsFix, CanonicalValue = CheckPredicate( Value, Context )
+					local NeedsFix, CanonicalValue, Data = CheckPredicate( Value, Context )
 					if NeedsFix then
 						if MessageSupplier then
 							Print( self.MessagePrefix..MessageSupplier(), PrintField )
 						end
 
-						TableSetField( Config, Path, FixFunction( Value, Context ) )
+						TableSetField( Config, Path, FixFunction( Value, Context, Data ) )
 
 						Context:PopField()
 

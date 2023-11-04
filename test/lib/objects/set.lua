@@ -31,6 +31,16 @@ local function RunSetTests( TypeName, SetType )
 		Assert:False( Set:Contains( "c" ) )
 	end )
 
+	UnitTest:Test( TypeName.." - Intersection with set type", function( Assert )
+		local Set = SetType( { a = true, b = true, c = true } )
+		Set:Intersection( SetType( { a = true, b = true, d = true } ) )
+
+		Assert:Equals( 2, Set:GetCount() )
+		Assert:True( Set:Contains( "a" ) )
+		Assert:True( Set:Contains( "b" ) )
+		Assert:False( Set:Contains( "c" ) )
+	end )
+
 	UnitTest:Test( TypeName.." - Union", function( Assert )
 		local Set = SetType( { a = true, b = true, c = true } )
 		Set:Union( SetType( { a = true, b = true, d = true } ) )

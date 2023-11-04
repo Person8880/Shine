@@ -25,15 +25,26 @@ end
 local ConfigModule = {}
 
 local ClientConfigPath = "config://shine/cl_plugins/"
+local GetConfigurationPath
+
+if Server then
+	GetConfigurationPath = function( self )
+		return Shine.Config.ExtensionDir..self.ConfigName
+	end
+else
+	-- Note: both client and predict VMs share the same configuration folder, as predicted plugins ought to be using
+	-- the same client-side configuration in both VMs.
+	GetConfigurationPath = function( self )
+		return ClientConfigPath..self.ConfigName
+	end
+end
 
 function ConfigModule:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 	self.Config.__Version = self.Version or "1.0"
 
-	if Save then
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
-			or ClientConfigPath..self.ConfigName
-
+	if Save and not Predict then
+		local Path = GetConfigurationPath( self )
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 		if not Success then
@@ -47,8 +58,17 @@ function ConfigModule:GenerateDefaultConfig( Save )
 end
 
 function ConfigModule:SaveConfig( Silent )
-	local Path = Server and ( rawget( self, "__ConfigPath" )
-		or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
+	if Predict then
+		Print( "[Warn] Ignoring request to save configuration for %s in prediction VM!", self.__Name )
+		return
+	end
+
+	local Path
+	if Server then
+		Path = rawget( self, "__ConfigPath" ) or GetConfigurationPath( self )
+	else
+		Path = GetConfigurationPath( self )
+	end
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -64,8 +84,7 @@ end
 
 function ConfigModule:LoadConfig()
 	local PluginConfig
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
-		or ClientConfigPath..self.ConfigName
+	local Path = GetConfigurationPath( self )
 
 	local ErrorMessage
 	local ErrorPosition
@@ -171,7 +190,7 @@ function ConfigModule:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if self:ValidateConfigAfterLoad() then
+	if self:ValidateConfigAfterLoad() and not Predict then
 		self:SaveConfig()
 	end
 end
@@ -179,6 +198,14 @@ end
 local AutoRegisterValidators
 if Client then
 	local ValidatorRules = {
+		Colour = function( self, ConfigKey, Options, Validator )
+			Validator:AddFieldRule( ConfigKey, Validator.IsType( "table", {} ) )
+			Validator:AddFieldRule( ConfigKey, Validator.HasLength( 3, 255 ) )
+			Validator:AddFieldRule( ConfigKey, Validator.AllValuesSatisfy(
+				Validator.IsType( "number", 255 ),
+				Validator.Clamp( 0, 255 )
+			) )
+		end,
 		Radio = function( self, ConfigKey, Options, Validator )
 			Validator:AddFieldRule( ConfigKey, Validator.InEnum( Options.Options, self.DefaultConfig[ ConfigKey ] ) )
 		end,
@@ -285,8 +312,9 @@ function ConfigModule:ValidateConfigAfterLoad()
 end
 
 function ConfigModule:MigrateConfig( Config )
+	local PluginVersion = self.Version or "1.0"
 	local CurrentConfigVersion = Shine.VersionHolder( Config.__Version or "0" )
-	local OurVersion = Shine.VersionHolder( self.Version or "1.0" )
+	local OurVersion = Shine.VersionHolder( PluginVersion )
 	if CurrentConfigVersion == OurVersion then return end
 
 	-- Do not permit loading a newer config version than the plugin.
@@ -314,28 +342,11 @@ function ConfigModule:MigrateConfig( Config )
 		} )
 	end
 
-	Config.__Version = self.Version or "1.0"
-
-	local MigrationSteps = self.ConfigMigrationSteps
-	if not MigrationSteps then return true end
-
-	local StartingStep
-	local EndStep = #MigrationSteps
-
-	-- Find the first step that migrates to a version later than the config's current version.
-	for i = 1, EndStep do
-		local Step = MigrationSteps[ i ]
-		if Shine.VersionHolder( Step.VersionTo ) > CurrentConfigVersion then
-			StartingStep = i
-			break
-		end
-	end
-
-	if not StartingStep then return true end
-
-	for i = StartingStep, EndStep do
-		MigrationSteps[ i ].Apply( Config )
-	end
+	Shine.ApplyConfigMigration( Config, {
+		NewVersion = PluginVersion,
+		CurrentVersion = CurrentConfigVersion,
+		MigrationSteps = self.ConfigMigrationSteps
+	} )
 
 	return true
 end
@@ -361,6 +372,14 @@ if Client then
 				Type = "boolean",
 				Optional = true,
 				Default = function() return not self.Config[ ConfigKey ] end
+			}
+		end,
+		Colour = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "colour",
+				TakeRestOfLine = true,
+				Optional = true,
+				Default = self.DefaultConfig[ ConfigKey ]
 			}
 		end,
 		Radio = function( self, ConfigKey, Command, Options )
@@ -517,7 +536,8 @@ if Client then
 				Icon = Group.Icon
 			},
 			Tooltip = Tooltip,
-			OptionTooltips = OptionTooltips
+			OptionTooltips = OptionTooltips,
+			DefaultValue = self.DefaultConfig[ ConfigKey ]
 		} )
 
 		local PostProcessor = PostProcessors[ Options.Type ]

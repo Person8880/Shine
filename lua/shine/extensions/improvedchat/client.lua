@@ -6,21 +6,28 @@ local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local ImageElement = require "shine/lib/gui/richtext/elements/image"
-local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
+
+local EmojiRepository = require "shine/extensions/improvedchat/emoji_repository"
 
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
 local Ceil = math.ceil
+local Implements = Shine.Implements
 local IsType = Shine.IsType
+local Max = math.max
 local OSDate = os.date
+local Round = math.Round
 local RoundTo = math.RoundTo
 local StringFormat = string.format
 local StringFind = string.find
+local StringMatch = string.match
+local StringSub = string.sub
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
+local TableSlice = table.Slice
 
 local Plugin = ...
 Plugin.HasConfig = true
@@ -56,7 +63,10 @@ Plugin.DefaultConfig = {
 	-- How to display messages:
 	-- UPWARDS - new messages at the bottom and move up as more messages appear.
 	-- DOWNWARDS - the vanilla method, new messages are added below older ones (in case anyone actually likes this).
-	MessageDisplayType = Plugin.MessageDisplayType.UPWARDS
+	MessageDisplayType = Plugin.MessageDisplayType.UPWARDS,
+
+	-- The alpha multiplier to apply to the text shadow on chat messages.
+	TextShadowOpacity = 1
 }
 
 Plugin.CheckConfig = true
@@ -330,6 +340,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:SetFont( Font )
 		ChatLine:SetTextScale( Scale )
 		ChatLine:SetLineSpacing( LineMargin )
+		ChatLine:SetTextShadow( Plugin:GetTextShadowParameters( Font, Scale ) )
 
 		Populator( ChatLine, Context )
 
@@ -436,6 +447,120 @@ function Plugin:Initialise()
 	return true
 end
 
+do
+	local function IsAllowedEmoji( Emoji, ListIndex, AllowedEmoji )
+		return AllowedEmoji:Contains( Emoji.Index )
+	end
+
+	local function IsAllowedEmojiByName( EmojiName, _, AllowedEmoji )
+		return IsAllowedEmoji( EmojiRepository.GetEmojiDefinition( EmojiName ), nil, AllowedEmoji )
+	end
+
+	function Plugin:OnChatBoxEmojiAutoComplete( ChatBox, Emoji )
+		if not self.dt.ParseEmojiInChat then return end
+
+		local Matches = EmojiRepository.FindMatchingEmoji( Emoji )
+		if self.AllowedEmoji then
+			-- No need to copy here, matches is a new table every time.
+			Matches = Shine.Stream( Matches ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
+		end
+
+		-- Bias towards suggesting more frequently used emoji first, but retain emoji definition order otherwise.
+		local FrequentlyUsedEmoji = EmojiRepository.GetFrequentlyUsedEmoji()
+		Matches = Shine.Stream( Matches ):StableSort( function( Left, Right )
+			local LeftFrequency = FrequentlyUsedEmoji:Get( Left.Name ) or 0
+			local RightFrequency = FrequentlyUsedEmoji:Get( Right.Name ) or 0
+
+			if LeftFrequency > RightFrequency then
+				return -1
+			end
+
+			if LeftFrequency < RightFrequency then
+				return 1
+			end
+
+			return 0
+		end ):AsTable()
+
+		return Matches
+	end
+
+	function Plugin:IsChatEmojiAvailable()
+		return self.dt.ParseEmojiInChat and not ( self.AllowedEmoji and self.AllowedEmoji:GetCount() == 0 )
+	end
+
+	function Plugin:OnChatBoxEmojiPickerOpen()
+		if not self.dt.ParseEmojiInChat then return end
+
+		local AllEmoji = EmojiRepository.GetAllEmoji()
+		local FrequentlyUsedEmoji = EmojiRepository.GetFrequentlyUsedEmoji()
+		if self.AllowedEmoji then
+			FrequentlyUsedEmoji:Filter( IsAllowedEmojiByName, self.AllowedEmoji )
+			-- Need to copy here as the returned table is the table of all emoji.
+			AllEmoji = Shine.Stream.Of( AllEmoji ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
+		end
+
+		if FrequentlyUsedEmoji:GetCount() > 0 then
+			local EmojiWithFrequentlyUsed = {}
+			local Count = 0
+			local FrequentlyUsedCategory = {
+				Name = self:GetPhrase( "FREQUENTLY_USED_EMOJI_CATEGORY_NAME" ),
+				Translations = {}
+			}
+
+			for Key in FrequentlyUsedEmoji:Iterate() do
+				local EmojiDefinition = EmojiRepository.GetEmojiDefinition( Key )
+
+				Count = Count + 1
+				EmojiWithFrequentlyUsed[ Count ] = {
+					Index = EmojiDefinition.Index,
+					Name = EmojiDefinition.Name,
+					ShortName = EmojiDefinition.ShortName,
+					Category = FrequentlyUsedCategory,
+					Texture = EmojiDefinition.Texture,
+					TextureCoordinates = EmojiDefinition.TextureCoordinates,
+					TexturePixelCoordinates = EmojiDefinition.TexturePixelCoordinates
+				}
+
+				if Count >= 25 then break end
+			end
+
+			for i = 1, #AllEmoji do
+				Count = Count + 1
+				EmojiWithFrequentlyUsed[ Count ] = AllEmoji[ i ]
+			end
+
+			AllEmoji = EmojiWithFrequentlyUsed
+		end
+
+		return AllEmoji
+	end
+
+	function Plugin:OnChatBoxEmojiSelected( ChatBox, EmojiName )
+		EmojiRepository.IncrementEmojiUsageCounter( EmojiName )
+	end
+
+	function Plugin:ReceiveSetEmojiRestrictions( Message )
+		local EmojiRestrictionChunks = self.EmojiRestrictionChunks
+		if not EmojiRestrictionChunks then
+			EmojiRestrictionChunks = {}
+			self.EmojiRestrictionChunks = EmojiRestrictionChunks
+		end
+
+		local ChunkIndex, NumChunks = self.DecodeMessageChunkData( Message )
+		EmojiRestrictionChunks[ ChunkIndex ] = Message
+
+		if #EmojiRestrictionChunks == NumChunks then
+			self.EmojiRestrictionChunks = nil
+			self.AllowedEmoji = self:DecodeBitSetFromChunks( EmojiRestrictionChunks )
+		end
+	end
+
+	function Plugin:ReceiveResetEmojiRestrictions( Message )
+		self.AllowedEmoji = nil
+	end
+end
+
 function Plugin:OnFirstThink()
 	SGUI.NotificationManager.RegisterHint( CHAT_CONFIG_HINT_NAME, {
 		MaxTimes = 1,
@@ -473,6 +598,29 @@ function Plugin:SetBackgroundOpacity( Opacity )
 	local ChatLines = self.GUIChat.ChatLines
 	for i = 1, #ChatLines do
 		ChatLines[ i ]:SetBackgroundAlpha( Opacity )
+	end
+end
+
+function Plugin:GetTextShadowParameters( Font, Scale )
+	if self.Config.TextShadowOpacity > 0 then
+		local FontAbsoluteSize = GUI.CalculateTextSize( Font, "!" ).y * Scale.y
+		local Offset = 2 * Max( Round( FontAbsoluteSize / 27 ), 1 )
+		return {
+			Colour = Colour( 0, 0, 0, self.Config.TextShadowOpacity ),
+			Offset = Vector2( Offset, Offset )
+		}
+	end
+	return nil
+end
+
+function Plugin:SetTextShadowOpacity( Opacity )
+	if not self.GUIChat or not self.GUIChat.ChatLines then return end
+
+	local ChatLines = self.GUIChat.ChatLines
+	for i = 1, #ChatLines do
+		local ChatLine = ChatLines[ i ]
+		local Params = self:GetTextShadowParameters( ChatLine.Font, ChatLine.TextScale )
+		ChatLines[ i ]:SetTextShadow( Params )
 	end
 end
 
@@ -797,121 +945,235 @@ function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColo
 	return true
 end
 
-local function IsVisibleToLocalPlayer( Player, TeamNumber )
-	local PlayerTeam = Player.GetTeamNumber and Player:GetTeamNumber()
-	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
-end
-
-local function GetTeamPrefix( Data )
-	if Data.LocationID > 0 then
-		local Location = Shared.GetString( Data.LocationID )
-		if StringFind( Location, "[^%s]" ) then
-			return StringFormat( "(Team, %s) ", Location )
-		end
-	end
-
-	return "(Team) "
-end
-
 local DEFAULT_IMAGE_SIZE = Units.UnitVector(
 	0,
 	Units.Percentage.ONE_HUNDRED
 )
 
--- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
-function Plugin:OnChatMessageReceived( Data )
-	local Player = Client.GetLocalPlayer()
-	if not Player then return true end
+do
+	local function ParseEmoji( Contents, Message, EmojiElementCreator, Context )
+		local CurrentIndex = 1
+		local LastTextIndex = 1
+		for i = 1, #Message do
+			local OpenStart, OpenEnd = StringFind( Message, ":", CurrentIndex, true )
+			if not OpenStart then break end
 
-	if not Client.GetIsRunningServer() then
+			local CloseStart, CloseEnd = StringFind( Message, ":", OpenEnd + 1, true )
+			if not CloseStart then break end
+
+			local TextBetween = StringSub( Message, OpenEnd + 1, CloseStart - 1 )
+			local EmojiElement = EmojiElementCreator( TextBetween, Context )
+			if EmojiElement then
+				EmojiElement.AutoSize = DEFAULT_IMAGE_SIZE
+				EmojiElement.AspectRatio = 1
+
+				local TextBefore = StringSub( Message, LastTextIndex, OpenStart - 1 )
+				if #TextBefore > 0 then
+					Contents[ #Contents + 1 ] = TextElement( TextBefore )
+				end
+				Contents[ #Contents + 1 ] = EmojiElement
+
+				LastTextIndex = CloseEnd + 1
+				CurrentIndex = CloseEnd + 1
+			else
+				-- Not a valid emoji between the two bounds, ignore this ":" and continue.
+				CurrentIndex = OpenEnd + 1
+			end
+		end
+
+		if LastTextIndex <= #Message then
+			Contents[ #Contents + 1 ] = TextElement( StringSub( Message, LastTextIndex ) )
+		end
+
+		return Contents
+	end
+
+	local function ParseEmojiInChatMessage( Contents, Message )
+		return ParseEmoji( Contents, Message, EmojiRepository.MakeEmojiElement )
+	end
+
+	local function CopyImage( self )
+		local Copy = ImageElement.Copy( self )
+		Copy.CopyText = self.CopyText
+		Copy.Text = self.Text
+		return Copy
+	end
+
+	local function AddEmojiIfAllowed( EmojiName, AllowedEmoji )
+		local EmojiDefinition = EmojiRepository.GetEmojiDefinition( EmojiName )
+		if not EmojiDefinition or ( AllowedEmoji and not AllowedEmoji:Contains( EmojiDefinition.Index ) ) then
+			return nil
+		end
+
+		local ImageElement = EmojiRepository.MakeEmojiElement( EmojiName )
+		-- When copying the text, copy the human-readable emoji name.
+		ImageElement.CopyText = StringFormat( ":%s:", EmojiDefinition.Name )
+		-- When extracting text (e.g. to submit a chat message), use the shortened name.
+		ImageElement.Text = StringFormat( ":%s:", EmojiDefinition.ShortName )
+		-- Override the copy method to ensure the above fields are retained after layout.
+		ImageElement.Copy = CopyImage
+		return ImageElement
+	end
+
+	function Plugin:ParseChatBoxText( ChatBox, Text )
+		if not self:IsChatEmojiAvailable() then return end
+
+		-- Parse emoji in chat box text, only displaying images for emoji that are allowed for the user.
+		return ParseEmoji( {}, Text, AddEmojiIfAllowed, self.AllowedEmoji )
+	end
+
+	local TableConcat = table.concat
+
+	local function LogChatMessage( Data, Message )
+		if Client.GetIsRunningServer() then return end
+
 		local Prefix = "Chat All"
 		if Data.TeamOnly then
 			Prefix = StringFormat( "Chat Team %d", Data.TeamNumber )
 		end
 
-		Shared.Message( StringFormat( "%s %s - %s: %s", OSDate( "[%H:%M:%S]" ), Prefix, Data.Name, Data.Message ) )
+		Shared.Message( StringFormat( "%s%s - %s: %s", OSDate( "[%H:%M:%S]" ), Prefix, Data.Name, Message ) )
 	end
 
-	if Data.SteamID ~= 0 and ChatUI_GetSteamIdTextMuted( Data.SteamID ) then
+	local function IsVisibleToLocalPlayer( Player, TeamNumber )
+		local PlayerTeam = Player.GetTeamNumber and Player:GetTeamNumber()
+		return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
+	end
+
+	local function GetTeamPrefix( Data )
+		if Data.LocationID > 0 then
+			local Location = Shared.GetString( Data.LocationID )
+			if StringFind( Location, "[^%s]" ) then
+				return StringFormat( "(Team, %s) ", Location )
+			end
+		end
+
+		return "(Team) "
+	end
+
+	local function ContentsToText( Contents, StartIndex )
+		local Count = 0
+		local MessageText = {}
+		for i = StartIndex + 1, #Contents do
+			local Element = Contents[ i ]
+			Count = Count + 1
+			MessageText[ Count ] = Implements( Element, TextElement ) and Element.Value or Element.Tooltip
+		end
+		return TableConcat( MessageText, "", 1, Count )
+	end
+
+	-- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
+	function Plugin:OnChatMessageReceived( Data )
+		local Player = Client.GetLocalPlayer()
+		if not Player then return true end
+
+		if Data.SteamID ~= 0 and ChatUI_GetSteamIdTextMuted( Data.SteamID ) then
+			LogChatMessage( Data, Data.Message )
+			return true
+		end
+
+		-- Server sends -1 for ClientID if there is no client attached to the message.
+		local Entry = Data.ClientID ~= -1 and Shine.GetScoreboardEntryByClientID( Data.ClientID )
+		local IsCommander = Entry and Entry.IsCommander and IsVisibleToLocalPlayer( Player, Entry.EntityTeamNumber )
+		local IsRookie = Entry and Entry.IsRookie
+
+		local Contents = {}
+
+		local ChatTag = self.ChatTags[ Data.SteamID ]
+		if ChatTag and ( not Data.TeamOnly or self.dt.DisplayChatTagsInTeamChat ) then
+			if ChatTag.Image then
+				Contents[ #Contents + 1 ] = ImageElement( {
+					Texture = ChatTag.Image,
+					AutoSize = DEFAULT_IMAGE_SIZE,
+					AspectRatio = 1
+				} )
+			end
+			Contents[ #Contents + 1 ] = ColourElement( ChatTag.Colour )
+			Contents[ #Contents + 1 ] = TextElement( ( ChatTag.Image and " " or "" )..ChatTag.Text.." " )
+		end
+
+		if IsCommander then
+			Contents[ #Contents + 1 ] = ColourElement( IntToColour( kCommanderColor ) )
+			Contents[ #Contents + 1 ] = TextElement( "[C] " )
+		end
+
+		if IsRookie then
+			Contents[ #Contents + 1 ] = ColourElement( IntToColour( kNewPlayerColor ) )
+			Contents[ #Contents + 1 ] = TextElement( Locale.ResolveString( "ROOKIE_CHAT" ).." " )
+		end
+
+		local Prefix = "(All) "
+		if Data.TeamOnly then
+			Prefix = GetTeamPrefix( Data )
+		end
+
+		Prefix = StringFormat( "%s%s: ", Prefix, Data.Name )
+
+		Contents[ #Contents + 1 ] = ColourElement( IntToColour( GetColorForTeamNumber( Data.TeamNumber ) ) )
+		Contents[ #Contents + 1 ] = TextElement( Prefix )
+
+		Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
+
+		if self.dt.ParseEmojiInChat then
+			-- Parse emoji only in the actual message, not the player name or tags.
+			local StartIndex = #Contents
+			ParseEmojiInChatMessage( Contents, Data.Message )
+
+			-- Take the human-readable text and log it, rather than logging emoji shortnames.
+			LogChatMessage( Data, ContentsToText( Contents, StartIndex ) )
+		else
+			Contents[ #Contents + 1 ] = TextElement( Data.Message )
+			LogChatMessage( Data, Data.Message )
+		end
+
+		Hook.Call( "OnChatMessageParsed", Data, Contents )
+
+		return self:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLAYER,
+				ID = Data.SteamID,
+				Details = Data
+			},
+			Message = Contents
+		} )
+	end
+
+	local getmetatable = getmetatable
+
+	function Plugin:AddRichTextMessage( MessageData )
+		if not self.GUIChat then
+			-- This shouldn't happen, but fail gracefully if it does.
+			self.Logger:Warn( "GUIChat not available, unable to display chat message." )
+			return
+		end
+
+		if MessageData.ParseEmoji then
+			-- Note: this won't be applied to chat messages as those will have already parsed emoji.
+			local Contents = MessageData.Message
+			local ParsedContents = {}
+			for i = 1, #Contents do
+				local Element = Contents[ i ]
+				if getmetatable( Element ) == TextElement then
+					ParseEmojiInChatMessage( ParsedContents, Element.Value )
+				else
+					ParsedContents[ #ParsedContents + 1 ] = Element
+				end
+			end
+			MessageData.Message = ParsedContents
+		end
+
+		if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
+			local Player = Client.GetLocalPlayer()
+			if Player and not MessageData.SuppressSound and Player.GetChatSound then
+				StartSoundEffect( Player:GetChatSound() )
+			end
+
+			Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
+		end
+
 		return true
 	end
 
-	-- Server sends -1 for ClientID if there is no client attached to the message.
-	local Entry = Data.ClientID ~= -1 and Shine.GetScoreboardEntryByClientID( Data.ClientID )
-	local IsCommander = Entry and Entry.IsCommander and IsVisibleToLocalPlayer( Player, Entry.EntityTeamNumber )
-	local IsRookie = Entry and Entry.IsRookie
-
-	local Contents = {}
-
-	local ChatTag = self.ChatTags[ Data.SteamID ]
-	if ChatTag and ( not Data.TeamOnly or self.dt.DisplayChatTagsInTeamChat ) then
-		if ChatTag.Image then
-			Contents[ #Contents + 1 ] = ImageElement( {
-				Texture = ChatTag.Image,
-				AutoSize = DEFAULT_IMAGE_SIZE,
-				AspectRatio = 1
-			} )
-		end
-		Contents[ #Contents + 1 ] = ColourElement( ChatTag.Colour )
-		Contents[ #Contents + 1 ] = TextElement( ( ChatTag.Image and " " or "" )..ChatTag.Text.." " )
-	end
-
-	if IsCommander then
-		Contents[ #Contents + 1 ] = ColourElement( IntToColour( kCommanderColor ) )
-		Contents[ #Contents + 1 ] = TextElement( "[C] " )
-	end
-
-	if IsRookie then
-		Contents[ #Contents + 1 ] = ColourElement( IntToColour( kNewPlayerColor ) )
-		Contents[ #Contents + 1 ] = TextElement( Locale.ResolveString( "ROOKIE_CHAT" ).." " )
-	end
-
-	local Prefix = "(All) "
-	if Data.TeamOnly then
-		Prefix = GetTeamPrefix( Data )
-	end
-
-	Prefix = StringFormat( "%s%s: ", Prefix, Data.Name )
-
-	Contents[ #Contents + 1 ] = ColourElement( IntToColour( GetColorForTeamNumber( Data.TeamNumber ) ) )
-	Contents[ #Contents + 1 ] = TextElement( Prefix )
-
-	Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
-	Contents[ #Contents + 1 ] = TextElement( Data.Message )
-
-	Hook.Call( "OnChatMessageParsed", Data, Contents )
-
-	return self:AddRichTextMessage( {
-		Source = {
-			Type = ChatAPI.SourceTypeName.PLAYER,
-			ID = Data.SteamID,
-			Details = Data
-		},
-		Message = Contents
-	} )
-end
-
-function Plugin:AddRichTextMessage( MessageData )
-	if not self.GUIChat then
-		-- This shouldn't happen, but fail gracefully if it does.
-		self.Logger:Warn( "GUIChat not available, unable to display chat message." )
-		return
-	end
-
-	if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
-		local Player = Client.GetLocalPlayer()
-		if Player and not MessageData.SuppressSound and Player.GetChatSound then
-			StartSoundEffect( Player:GetChatSound() )
-		end
-
-		Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
-	end
-
-	return true
-end
-
-do
-	local getmetatable = getmetatable
 	local StringMatch = string.match
 	local TableAdd = table.Add
 	local TableConcat = table.concat
@@ -992,6 +1254,7 @@ do
 		}
 
 		Holder.SuppressSound = Data.SuppressSound
+		Holder.ParseEmoji = Data.ParseEmoji
 	end
 
 	for i = 1, Plugin.MAX_CHUNKS_PER_MESSAGE do
@@ -1038,7 +1301,8 @@ do
 			self:AddRichTextMessage( {
 				Source = MessageChunks.Source,
 				SuppressSound = MessageChunks.SuppressSound,
-				Message = FinalMessage
+				Message = FinalMessage,
+				ParseEmoji = MessageChunks.ParseEmoji
 			} )
 		end
 	end
@@ -1079,6 +1343,17 @@ Plugin.ClientConfigSettings = {
 		IsPercentage = true,
 		CommandMessage = "Chat message background opacity set to: %s%%",
 		OnChange = Plugin.SetBackgroundOpacity
+	},
+	{
+		ConfigKey = "TextShadowOpacity",
+		Command = "sh_chat_textshadowopacity",
+		Type = "Slider",
+		Min = 0,
+		Max = 100,
+		Decimals = 0,
+		IsPercentage = true,
+		CommandMessage = "Chat message text shadow opacity set to: %s%%",
+		OnChange = Plugin.SetTextShadowOpacity
 	},
 	{
 		ConfigKey = "MaxVisibleMessages",

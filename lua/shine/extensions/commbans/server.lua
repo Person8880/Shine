@@ -2,6 +2,8 @@
 	Shine commander bans plugin.
 ]]
 
+local JSON = require "shine/lib/json"
+
 local Plugin = ...
 
 local Shine = Shine
@@ -17,9 +19,9 @@ Plugin.ConfigName = "CommBans.json"
 Plugin.PrintName = "CommBans"
 
 Plugin.DefaultConfig = {
-	Banned = {},
+	Banned = JSON.Object(),
 	BansSubmitURL = "",
-	BansSubmitArguments = {},
+	BansSubmitArguments = JSON.Object(),
 	LogLevel = "Info",
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5,

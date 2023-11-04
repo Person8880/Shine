@@ -188,6 +188,7 @@ function Text:MakeElement( Context )
 	Label:SetIsSchemed( false )
 	Label:SetFontScale( Context.CurrentFont, Context.CurrentScale )
 	Label:SetColour( Context.CurrentColour )
+	Label:SetShadow( Context.CurrentTextShadow )
 	Label:SetText( self.Value )
 
 	self.AddThinkFunction( Label, self.Think )

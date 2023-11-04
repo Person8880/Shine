@@ -29,41 +29,36 @@ local DefaultLabelFont = {
 local Skin = {
 	Row = {
 		Default = {
-			Colour = Colour( 0.3, 0.3, 0.3, BackgroundAlpha ),
-			InheritsParentAlpha = true
+			Colour = Colour( 0.3, 0.3, 0.3, BackgroundAlpha )
 		}
 	},
 	Column = {
 		Default = {
-			Colour = Colour( 0.1, 0.1, 0.1, BackgroundAlpha ),
-			InheritsParentAlpha = true
+			Colour = Colour( 0.1, 0.1, 0.1, BackgroundAlpha )
 		}
 	},
 	Image = {
-		Default = {
-			InheritsParentAlpha = true
-		},
+		Default = {},
 		Alien = {
-			Colour = Colour( 1, 0.75, 0, 1 / BackgroundAlpha )
+			Colour = Colour( 1, 0.75, 0, 1 )
 		},
 		Marine = {
-			Colour = Colour( 0, 0.75, 1, 1 / BackgroundAlpha )
+			Colour = Colour( 0, 0.75, 1, 1 )
 		}
 	},
 	Label = {
 		Default = {
 			AutoFont = DefaultLabelFont,
-			Colour = Colour( 1, 1, 1, 1 / BackgroundAlpha ),
-			InheritsParentAlpha = true
+			Colour = Colour( 1, 1, 1, 1 )
 		},
 		CountdownTimeRunningOut = {
-			Colour = Colour( 1, 0, 0, 1 / BackgroundAlpha )
+			Colour = Colour( 1, 0, 0, 1 )
 		},
 		Alien = {
-			Colour = Colour( 1, 0.75, 0, 1 / BackgroundAlpha )
+			Colour = Colour( 1, 0.75, 0, 1 )
 		},
 		Marine = {
-			Colour = Colour( 0, 0.75, 1, 1 / BackgroundAlpha )
+			Colour = Colour( 0, 0.75, 1, 1 )
 		}
 	},
 	MapVoteNotification = {
@@ -80,6 +75,9 @@ SGUI.AddProperty( MapVoteNotification, "EndTime" )
 
 function MapVoteNotification:Initialise()
 	Controls.Row.Initialise( self )
+
+	self.InheritsParentAlpha = true
+	self:SetPropagateAlphaInheritance( true )
 
 	self:SetSkin( Skin )
 
@@ -275,7 +273,7 @@ end
 function MapVoteNotification:FadeIn()
 	self:SetIsVisible( true )
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		StartValue = 0,
 		EndValue = 1,
 		Duration = 0.3
@@ -297,7 +295,7 @@ function MapVoteNotification:FadeOut( Callback )
 	self.FadeOutCallback = Callback
 
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		EndValue = 0,
 		Duration = 0.3,
 		Callback = OnFadeOutComplete
