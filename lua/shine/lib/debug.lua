@@ -504,7 +504,7 @@ do
 		__PrintAsString = true
 	} )
 
-	local MAX_STACK_LEVELS_BEFORE_STACK_OVERFLOW = 50
+	local MAX_STACK_LEVELS_BEFORE_STACK_OVERFLOW = 250
 	local INFO_MASK = "Snl"
 	function Shine.StackDump( Level )
 		Level = Level or 1
