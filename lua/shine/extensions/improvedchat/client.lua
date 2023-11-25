@@ -1179,9 +1179,9 @@ do
 		end
 
 		if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
-			if self.Config.PlayChatSound then
+			if not MessageData.SuppressSound and self.Config.PlayChatSound then
 				local Player = Client.GetLocalPlayer()
-				if Player and not MessageData.SuppressSound and Player.GetChatSound then
+				if Player and Player.GetChatSound then
 					StartSoundEffect( Player:GetChatSound() )
 				end
 			end
