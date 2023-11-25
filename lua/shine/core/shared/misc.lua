@@ -9,7 +9,8 @@ do
 	elseif Client then
 		HookNetworkMessage = Client.HookNetworkMessage
 	elseif Predict then
-		HookNetworkMessage = Predict.HookNetworkMessage
+		-- Do nothing on the prediction VM as network messages don't work correctly.
+		HookNetworkMessage = function() end
 	end
 
 	local NetworkMessageErrorHandler = Shine.BuildErrorHandler( "Network message callback error" )

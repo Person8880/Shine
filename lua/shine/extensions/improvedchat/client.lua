@@ -21,6 +21,7 @@ local Max = math.max
 local OSDate = os.date
 local Round = math.Round
 local RoundTo = math.RoundTo
+local StringEndsWith = string.EndsWith
 local StringFormat = string.format
 local StringFind = string.find
 local StringMatch = string.match
@@ -64,6 +65,9 @@ Plugin.DefaultConfig = {
 	-- UPWARDS - new messages at the bottom and move up as more messages appear.
 	-- DOWNWARDS - the vanilla method, new messages are added below older ones (in case anyone actually likes this).
 	MessageDisplayType = Plugin.MessageDisplayType.UPWARDS,
+
+	-- Whether to play a sound when a chat message is received.
+	PlayChatSound = true,
 
 	-- The alpha multiplier to apply to the text shadow on chat messages.
 	TextShadowOpacity = 1
@@ -561,7 +565,19 @@ do
 	end
 end
 
+function Plugin:CanStartSoundEffect( EffectName )
+	-- This is a fairly crude suppression, it assumes that the only places calling StartSoundEffect() with a sound
+	-- ending with "/chat" are associated with the chat system itself. This is true in the vanilla game, but may not be
+	-- elsewhere. Unfortunately, the vanilla code embeds sound effects deep within local functions that are hard to
+	-- reach, so this is the only foolproof detection method.
+	if not self.Config.PlayChatSound and IsType( EffectName, "string" ) and StringEndsWith( EffectName, "/chat" ) then
+		return false
+	end
+end
+
 function Plugin:OnFirstThink()
+	Shine.Hook.SetupGlobalHook( "StartSoundEffect", "CanStartSoundEffect", "Halt" )
+
 	SGUI.NotificationManager.RegisterHint( CHAT_CONFIG_HINT_NAME, {
 		MaxTimes = 1,
 		MessageSupplier = function()
@@ -1163,9 +1179,11 @@ do
 		end
 
 		if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
-			local Player = Client.GetLocalPlayer()
-			if Player and not MessageData.SuppressSound and Player.GetChatSound then
-				StartSoundEffect( Player:GetChatSound() )
+			if not MessageData.SuppressSound and self.Config.PlayChatSound then
+				local Player = Client.GetLocalPlayer()
+				if Player and Player.GetChatSound then
+					StartSoundEffect( Player:GetChatSound() )
+				end
 			end
 
 			Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
@@ -1330,6 +1348,18 @@ Plugin.ClientConfigSettings = {
 		Type = "Boolean",
 		CommandMessage = function( Value )
 			return StringFormat( "Chat messages %s.", Value and "will now animate" or "will no longer animate" )
+		end,
+		Tooltip = true
+	},
+	{
+		ConfigKey = "PlayChatSound",
+		Command = "sh_chat_playchatsound",
+		Type = "Boolean",
+		CommandMessage = function( Value )
+			return StringFormat(
+				"A sound %s.",
+				Value and "will now be played for new chat messages" or "will no longer be played for new chat messages"
+			)
 		end,
 		Tooltip = true
 	},

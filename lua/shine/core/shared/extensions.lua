@@ -985,11 +985,13 @@ do
 	end
 end
 
-Shared.RegisterNetworkMessage( "Shine_PluginSync", ClientPlugins )
-Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
-	Plugin = "string (25)",
-	Enabled = "boolean"
-} )
+if not Predict then
+	Shared.RegisterNetworkMessage( "Shine_PluginSync", ClientPlugins )
+	Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
+		Plugin = "string (25)",
+		Enabled = "boolean"
+	} )
+end
 
 local OfficialExtensions
 

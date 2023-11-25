@@ -255,7 +255,12 @@ Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
 			local MaxHeight = 0
 			for j = 1, #Chars do
 				local Char = Chars[ j ]
-				if GetCanFontRenderString( Font, Char ) then
+
+				-- If this errors, the font is invalid and won't be usable, so don't both looking further.
+				local Success, CanRender = pcall( GetCanFontRenderString, Font, Char )
+				if not Success then return end
+
+				if CanRender then
 					local Size = CalculateTextSize( Font, Char )
 					MaxHeight = Max( MaxHeight, Size.y )
 

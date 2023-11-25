@@ -76,8 +76,8 @@ do
 		Call this function inside shared.lua -> Plugin:SetupDataTable().
 	]]
 	function NetworkingModule:AddNetworkMessage( Name, Params, Receiver )
-		-- Prediction VM should only register messages intended for it to handle.
-		if Predict and Receiver ~= "Predict" and Receiver ~= "Client+Predict" then return end
+		-- Prediction VM should not register network messages, they don't work correctly.
+		if Predict then return end
 
 		self.__NetworkMessages = rawget( self, "__NetworkMessages" ) or {}
 
@@ -106,12 +106,8 @@ do
 			Server.HookNetworkMessage( MessageName, function( Client, Data )
 				xpcall( CallReceiver, NetworkReceiveError, self, Client, Data )
 			end )
-		elseif Client and ( Receiver == "Client" or Receiver == "Client+Predict" ) then
+		elseif Client and Receiver == "Client" then
 			Client.HookNetworkMessage( MessageName, function( Data )
-				xpcall( CallReceiver, NetworkReceiveError, self, Data )
-			end )
-		elseif Predict and ( Receiver == "Predict" or Receiver == "Client+Predict" ) then
-			Predict.HookNetworkMessage( MessageName, function( Data )
 				xpcall( CallReceiver, NetworkReceiveError, self, Data )
 			end )
 		end
@@ -298,7 +294,7 @@ elseif Client then
 		Shine.SendNetworkMessage( MessageName, Data, Reliable )
 	end
 else
-	-- Prediction VM can't send network messages, it can only receive them.
+	-- Prediction VM can't send or receive network messages.
 	function NetworkingModule:SendNetworkMessage( Name )
 		error(
 			StringFormat(
