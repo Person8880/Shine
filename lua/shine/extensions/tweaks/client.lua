@@ -571,9 +571,12 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 			Atlas:Destroy()
 		end
 
+		local Locations = self:GetLocationsForName( LocationName )
+		if not Locations then return end
+
 		Atlas = LocationAtlas( {
 			LocationName = LocationName,
-			LocationTriggerEntities = self:GetLocationsForName( LocationName ),
+			LocationTriggerEntities = Locations,
 			Minimap = Minimap,
 			MinimapSize = MinimapSize,
 			Colours = {
