@@ -157,15 +157,24 @@ function VirtualScrollPanel:SetRowElementGenerator( RowElementGenerator )
 	return true
 end
 
-function VirtualScrollPanel:GetOrCreateRow( Index )
-	local RowElement = self.Layout.Elements[ Index ]
+local function CreateRowIfMissing( self, ExistingRowElement )
+	local RowElement = ExistingRowElement
 	if not SGUI.IsValid( RowElement ) then
 		RowElement = self.RowElementGenerator()
 		RowElement:SetParent( self, self.ScrollParent )
-		self.Layout:InsertElement( RowElement, Index )
+		self.Layout:AddElement( RowElement )
 		self:InvalidateLayout()
 	end
 	return RowElement
+end
+
+function VirtualScrollPanel:GetOrCreateRow( Index )
+	local Elements = self.Layout.Elements
+	-- Populate all rows behind this one as well as the requested index to avoid addings gaps to the element list.
+	for i = #Elements + 1, Index - 1 do
+		CreateRowIfMissing( self, Elements[ i ] )
+	end
+	return CreateRowIfMissing( self, Elements[ Index ] )
 end
 
 local function ComputeRowIndexFromScrollOffset( ScrollOffset, RowHeight )
