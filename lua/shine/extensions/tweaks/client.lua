@@ -572,7 +572,10 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		end
 
 		local Locations = self:GetLocationsForName( LocationName )
-		if not Locations then return end
+		if not Locations then
+			HideLocationBoxes( Minimap )
+			return
+		end
 
 		Atlas = LocationAtlas( {
 			LocationName = LocationName,
