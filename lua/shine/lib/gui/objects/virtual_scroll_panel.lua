@@ -32,6 +32,8 @@
 	Every row element will have their size set automatically to be (100%, RowHeight).
 ]]
 
+local Abs = math.abs
+local assert = assert
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
@@ -157,15 +159,27 @@ function VirtualScrollPanel:SetRowElementGenerator( RowElementGenerator )
 	return true
 end
 
-function VirtualScrollPanel:GetOrCreateRow( Index )
-	local RowElement = self.Layout.Elements[ Index ]
+local function CreateRowIfMissing( self, ExistingRowElement )
+	local RowElement = ExistingRowElement
 	if not SGUI.IsValid( RowElement ) then
 		RowElement = self.RowElementGenerator()
 		RowElement:SetParent( self, self.ScrollParent )
-		self.Layout:InsertElement( RowElement, Index )
+		self.Layout:AddElement( RowElement )
 		self:InvalidateLayout()
 	end
 	return RowElement
+end
+
+function VirtualScrollPanel:GetOrCreateRow( Index )
+	assert( Index > 0, "Cannot create row with negative index!" )
+
+	local Elements = self.Layout.Elements
+	-- Populate all rows behind this one as well as the requested index to avoid addings gaps to the element list.
+	for i = #Elements + 1, Index - 1 do
+		CreateRowIfMissing( self, Elements[ i ] )
+	end
+
+	return CreateRowIfMissing( self, Elements[ Index ] )
 end
 
 local function ComputeRowIndexFromScrollOffset( ScrollOffset, RowHeight )
@@ -203,7 +217,7 @@ function VirtualScrollPanel:SetScrollOffset( Offset )
 		-- If there's an old scroll offset, then all rows should have been setup for the current size, and thus the
 		-- changes to apply depend on whether the first row index has changed.
 		Delta = RowIndex - ComputeRowIndexFromScrollOffset( OldScrollOffset, RowHeight )
-		if Delta >= MaxVisibleRows then
+		if Abs( Delta ) >= MaxVisibleRows then
 			-- All rows need changing, treat it the same as having no previous offset.
 			Delta = nil
 		end
@@ -215,7 +229,7 @@ function VirtualScrollPanel:SetScrollOffset( Offset )
 			-- Start from the old last row index and work forwards.
 			local NewStartIndex = RowIndex - Delta + MaxVisibleRows - 1
 			for i = 1, Delta do
-				local RowElement = self:GetOrCreateRow( i )
+				local RowElement = self:GetOrCreateRow( 1 )
 				self.Layout:RemoveElement( RowElement )
 				self.Layout:AddElement( RowElement )
 
@@ -228,8 +242,7 @@ function VirtualScrollPanel:SetScrollOffset( Offset )
 			-- Start from the old first row index and work backwards.
 			local NewStartIndex = RowIndex - Delta
 			for i = -1, Delta, -1 do
-				-- Inverted loop, but effectively just going Max + 0, Max - 1, Max -2...
-				local RowElement = self:GetOrCreateRow( MaxVisibleRows + i + 1 )
+				local RowElement = self:GetOrCreateRow( MaxVisibleRows )
 				self.Layout:RemoveElement( RowElement )
 				self.Layout:InsertElement( RowElement, 1 )
 
