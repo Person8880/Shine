@@ -938,7 +938,7 @@ function Plugin:CreateAdminCommands()
 				KickMessage = StringFormat( "Kicked from server by %s.", KickerName )
 			end
 
-			Server.DisconnectClient( Target, KickMessage )
+			Shine:DisconnectClient( Target, KickMessage )
 		end
 
 		self:SendTranslatedMessage( Client, "ClientKicked", {

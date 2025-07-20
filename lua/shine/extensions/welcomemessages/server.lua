@@ -278,22 +278,3 @@ function Plugin:Cleanup()
 	self.Welcomed = nil
 	self.BaseClass.Cleanup( self )
 end
-
-Shine.Hook.SetupGlobalHook(
-	"Server.DisconnectClient",
-	"OnScriptDisconnect",
-	function( DisconnectClient, Client, ... )
-		if not IsType( Client, "userdata" ) or not IsValid( Client )
-		or not ( IsType( Client.isa, "function" ) and Client:isa( "ServerClient" ) ) then
-			Print(
-				"Invalid ServerClient object (%s) passed to Server.DisconnectClient!\n%s",
-				type( Client ),
-				Shine.StackDump( 2 )
-			)
-		else
-			Shine.Hook.Broadcast( "OnScriptDisconnect", Client, ... )
-		end
-
-		return DisconnectClient( Client, ... )
-	end
-)

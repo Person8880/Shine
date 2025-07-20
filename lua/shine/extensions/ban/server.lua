@@ -515,7 +515,7 @@ function Plugin:PerformBan( Target, Player, BanningName, Duration, Reason )
 		string.TimeToDuration( Duration ),
 		Reason )
 
-	Server.DisconnectClient( Target, BanMessage )
+	Shine:DisconnectClient( Target, BanMessage )
 end
 
 --[[
@@ -794,13 +794,13 @@ local FAMILY_SHARE_IMMUNITY_PERMISSION = "sh_ban_family_share_immune"
 function Plugin:KickForFamilySharingWhenBanned( Client, Sharer )
 	self:Print( "Kicking %s for family sharing with a banned account. Sharer ID: %s.", true,
 			Shine.GetClientInfo( Client ), Sharer )
-	Server.DisconnectClient( Client, FAMILY_SHARING_BAN_MESSAGE )
+	Shine:DisconnectClient( Client, FAMILY_SHARING_BAN_MESSAGE )
 end
 
 function Plugin:KickForFamilySharing( Client, Sharer )
 	self:Print( "Kicking %s for family sharing. Sharer ID: %s.", true,
 		Shine.GetClientInfo( Client ), Sharer )
-	Server.DisconnectClient( Client, FAMILY_SHARING_BLOCKED_MESSAGE )
+	Shine:DisconnectClient( Client, FAMILY_SHARING_BLOCKED_MESSAGE )
 end
 
 function Plugin:IsClientImmuneToFamilySharingChecks( Client )

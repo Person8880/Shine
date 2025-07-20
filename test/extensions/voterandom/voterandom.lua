@@ -1503,6 +1503,11 @@ end )
 do
 	local OldApplyToBots = VoteShuffle.Config.ApplyToBots
 	local OldGetMaxPlayers = VoteShuffle.GetMaxPlayers
+	local OldDisconnectClient = Shine.DisconnectClient
+
+	function Shine:DisconnectClient( Client )
+		return Client.bot:Disconnect()
+	end
 
 	local MaxPlayers = 2
 	function VoteShuffle:GetMaxPlayers()
@@ -1584,6 +1589,7 @@ do
 
 	VoteShuffle.GetMaxPlayers = OldGetMaxPlayers
 	VoteShuffle.Config.ApplyToBots = OldApplyToBots
+	Shine.DisconnectClient = OldDisconnectClient
 end
 
 ----- Integration tests for team optimisation -----

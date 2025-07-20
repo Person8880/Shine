@@ -517,8 +517,7 @@ function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
 end
 
 function Plugin:KickClient( Client )
-	Client.DisconnectReason = "AFK for too long"
-	Server.DisconnectClient( Client, "AFK for too long." )
+	Shine:DisconnectClient( Client, "AFK for too long." )
 end
 
 function Plugin:CanCheckInCurrentGameState( Gamerules )

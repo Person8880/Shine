@@ -184,7 +184,7 @@ Plugin.FilterActions = {
 
 		self:Print( "Client %s[%s] was kicked for filtered name.", true, FilteredName, Client:GetUserId() )
 
-		Server.DisconnectClient( Client, "Kicked for filtered name." )
+		Shine:DisconnectClient( Client, "Kicked for filtered name." )
 	end,
 
 	[ Plugin.FilterActionType.BAN ] = function( self, Player, FilteredName )
@@ -213,7 +213,7 @@ Plugin.FilterActions = {
 			BanReason = "Kicked for filtered name."
 		end
 
-		Server.DisconnectClient( Client, BanReason )
+		Shine:DisconnectClient( Client, BanReason )
 	end
 }
 
