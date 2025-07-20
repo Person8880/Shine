@@ -77,8 +77,7 @@ function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reas
 		"[PingTracker] Kicked client %s. Average ping: %.2f. Average jitter: %.2f.",
 		Shine.GetClientInfo( Client ), AveragePing, AverageJitter ) )
 
-	Client.DisconnectReason = Reason
-	Server.DisconnectClient( Client, Reason )
+	Shine:DisconnectClient( Client, Reason )
 
 	return false
 end

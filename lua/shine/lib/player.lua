@@ -130,6 +130,7 @@ end
 local Abs = math.abs
 local Floor = math.floor
 local IsType = Shine.IsType
+local IsValid = debug.isvalid
 local pairs = pairs
 local StringFind = string.find
 local StringFormat = string.format
@@ -145,9 +146,38 @@ local tonumber = tonumber
 
 --[[
 	Returns whether the given client is valid.
+
+	This returns false for clients that are disconnecting.
 ]]
 function Shine:IsValidClient( Client )
 	return Client and self.GameIDs:Get( Client ) ~= nil
+end
+
+--[[
+	Returns whether the given value is a "ServerClient" object that is still valid for interactions.
+
+	This includes clients that are disconnecting.
+]]
+function Shine.IsValidOrDisconnectingClient( Client )
+	return IsType( Client, "userdata" ) and IsValid( Client ) and IsType( Client.isa, "function" )
+		and Client:isa( "ServerClient" )
+end
+
+--[[
+	Disconnects the given client, accounting for bots.
+]]
+function Shine:DisconnectClient( Client, ... )
+	self.AssertAtLevel( self:IsValidClient( Client ), "Invalid client passed to DisconnectClient!", 3 )
+
+	Client.DisconnectReason = ... or Client.DisconnectReason
+
+	if Client.bot and IsType( Client.bot.Disconnect, "function" ) then
+		-- Bots need to call their specific Disconnect() method, otherwise their entities are orphaned.
+		return Client.bot:Disconnect()
+	end
+
+	-- Have to pass a var-arg here, otherwise the overload type checking will error for a nil message.
+	return Server.DisconnectClient( Client, ... )
 end
 
 --[[
@@ -657,7 +687,7 @@ local ConsoleInfo = "Console[N/A]"
 
 function Shine.GetClientInfo( Client )
 	if not Client then return ConsoleInfo end
-	if not Shine:IsValidClient( Client ) then
+	if not Shine.IsValidOrDisconnectingClient( Client ) then
 		return "<Invalid>[?]"
 	end
 

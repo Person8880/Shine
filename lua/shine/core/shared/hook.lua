@@ -901,6 +901,25 @@ local function HookConnectionEvents()
 end
 Add( "MapPostLoad", HookConnectionEvents, HookConnectionEvents, MAX_PRIORITY )
 
+SetupGlobalHook(
+	"Server.DisconnectClient",
+	"OnScriptDisconnect",
+	function( DisconnectClient, Client, ... )
+		-- The engine crashes when DisconnectClient is passed an invalid client, so catch it here before it reaches
+		-- the engine.
+		if not Shine.IsValidOrDisconnectingClient( Client ) then
+			error(
+				StringFormat( "Invalid ServerClient object (%s) passed to Server.DisconnectClient!", type( Client ) ),
+				2
+			)
+		end
+
+		Broadcast( "OnScriptDisconnect", Client, ... )
+
+		return DisconnectClient( Client, ... )
+	end
+)
+
 do
 	local function MapLoadEntity( MapName, GroupName, Values )
 		Broadcast( "MapLoadEntity", MapName, GroupName, Values )

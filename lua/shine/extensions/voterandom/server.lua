@@ -765,14 +765,6 @@ do
 		return self.LastAttemptedTeamJoins[ Client ] or self.TeamPreferences[ Client ]
 	end
 
-	local function KickBot( Client )
-		if Client.bot and Client.bot.Disconnect then
-			Client.bot:Disconnect()
-		else
-			Server.DisconnectClient( Client )
-		end
-	end
-
 	function Plugin:GetMaxPlayers()
 		return GetMaxPlayers()
 	end
@@ -806,7 +798,7 @@ do
 				end
 
 				NumCandidatePlayers = NumCandidatePlayers - 1
-				KickBot( Client )
+				Shine:DisconnectClient( Client )
 
 				return false
 			end
@@ -918,7 +910,7 @@ do
 			-- Bot and we don't want to deal with them, so kick them out.
 			if Client:GetIsVirtual() and not IsCommander and not self.Config.ApplyToBots then
 				if Pass == 1 then
-					KickBot( Client )
+					Shine:DisconnectClient( Client )
 				end
 				return
 			end
