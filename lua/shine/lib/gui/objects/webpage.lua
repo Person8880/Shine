@@ -104,14 +104,15 @@ function Webpage:LoadURL( URL, W, H, Replace )
 		self.WebView:HookJSAlert( function( WebView, AlertText )
 			xpcall( self.OnJSAlert, OnAlertError, self, WebView, AlertText )
 		end )
+
+		self.HasSetInitialURL = false
 	end
 
-	if Replace then
+	if Replace and self.HasSetInitialURL then
 		-- Overwrite the current URL with the given URL to avoid it showing up in the history.
-		-- This is mainly useful for the initial URL load, as the first URL loaded is a basic data-URL with an empty
-		-- HTML body which doesn't make sense to navigate back to.
 		self:ExecuteJS( StringFormat( [[location.replace( "%s" );]], EscapeStringForJavaScript( URL ) ) )
 	else
+		self.HasSetInitialURL = true
 		self.WebView:LoadUrl( URL )
 	end
 

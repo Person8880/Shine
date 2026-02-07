@@ -214,8 +214,7 @@ function Shine:OpenWebpage( URL, TitleText )
 
 	local Webpage = Window:Add( "Webpage" )
 	Webpage:SetPos( Vector2( BarPadding, TitleBarH * 2 + BarPadding * 2 ) )
-	-- Replace the initial data-URL to avoid being able to go back to it.
-	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight, true )
+	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
 
 	WebpageControls:SetWebpage( Webpage )
 
