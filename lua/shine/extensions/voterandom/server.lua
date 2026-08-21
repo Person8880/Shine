@@ -26,7 +26,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.12"
+Plugin.Version = "2.13"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -45,6 +45,9 @@ Plugin.EnforcementPolicyType = table.AsEnum{
 }
 Plugin.TeamPreferenceWeighting = table.AsEnum{
 	"NONE", "LOW", "MEDIUM", "HIGH"
+}
+Plugin.CommanderSkillBlendType = table.AsEnum{
+	"COMMANDER_ONLY", "AVERAGE", "AVERAGE_IF_FIELD_SKILL_HIGHER"
 }
 
 -- These are derived from simulated optimisation results.
@@ -95,9 +98,14 @@ Plugin.DefaultConfig = {
 		[ Plugin.ShuffleMode.HIVE ] = {
 			UseTeamSkill = true,
 			UseCommanderSkill = true,
-			-- Whether to blend the commander and field skill values for an alien commander to account for them being
-			-- out of the hive for a significant amount of time during a round.
-			BlendAlienCommanderAndFieldSkills = false
+			-- How to blend a commander's commander and field skill values, to account for them being out of the
+			-- command structure for a significant amount of time during a round. May be one of:
+			-- - COMMANDER_ONLY uses the commander skill as-is.
+			-- - AVERAGE uses the mean of the commander and field skills.
+			-- - AVERAGE_IF_FIELD_SKILL_HIGHER uses the mean only when the field skill is higher, otherwise uses the
+			--   commander skill as-is.
+			MarineCommanderSkillBlend = Plugin.CommanderSkillBlendType.COMMANDER_ONLY,
+			AlienCommanderSkillBlend = Plugin.CommanderSkillBlendType.COMMANDER_ONLY
 		}
 	},
 
@@ -319,6 +327,26 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "2.12",
 		Apply = Shine.Migrator()
 			:AddField( { "BalanceModeConfig", Plugin.ShuffleMode.HIVE, "BlendAlienCommanderAndFieldSkills" }, false )
+	},
+	{
+		VersionTo = "2.13",
+		Apply = Shine.Migrator()
+			:AddField(
+				{ "BalanceModeConfig", Plugin.ShuffleMode.HIVE, "MarineCommanderSkillBlend" },
+				Plugin.CommanderSkillBlendType.COMMANDER_ONLY
+			)
+			:AddField(
+				{ "BalanceModeConfig", Plugin.ShuffleMode.HIVE, "AlienCommanderSkillBlend" },
+				function( Config )
+					local BalanceModeConfig = Config.BalanceModeConfig
+						and Config.BalanceModeConfig[ Plugin.ShuffleMode.HIVE ]
+					if BalanceModeConfig and BalanceModeConfig.BlendAlienCommanderAndFieldSkills then
+						return Plugin.CommanderSkillBlendType.AVERAGE
+					end
+					return Plugin.CommanderSkillBlendType.COMMANDER_ONLY
+				end
+			)
+			:RemoveField( { "BalanceModeConfig", Plugin.ShuffleMode.HIVE, "BlendAlienCommanderAndFieldSkills" } )
 	}
 }
 
@@ -333,6 +361,11 @@ do
 			Validator:CheckTypesAgainstDefault( "BalanceModeConfig."..Mode, DefaultConfigForMode )
 		end
 	end
+
+	Validator:AddFieldRules( {
+		StringFormat( "BalanceModeConfig.%s.MarineCommanderSkillBlend", Plugin.ShuffleMode.HIVE ),
+		StringFormat( "BalanceModeConfig.%s.AlienCommanderSkillBlend", Plugin.ShuffleMode.HIVE )
+	}, Validator.InEnum( Plugin.CommanderSkillBlendType, Plugin.CommanderSkillBlendType.COMMANDER_ONLY ) )
 
 	Validator:CheckTypesAgainstDefault( "VoteConstraints", Plugin.DefaultConfig.VoteConstraints )
 	Validator:CheckTypesAgainstDefault( "VoteConstraints.PreGame", Plugin.DefaultConfig.VoteConstraints.PreGame )
@@ -1879,10 +1912,13 @@ function Plugin:CreateCommands()
 		local BalanceModeConfig = self:GetBalanceModeConfig()
 
 		Message[ #Message + 1 ] = StringFormat(
-			"Team skills are %s. Commander skills are %s. Alien commander skill blending is %s.",
+			"Team skills are %s. Commander skills are %s. Commander skill blending is %s for marines, %s for aliens.",
 			self:IsPerTeamSkillEnabled() and "enabled" or "disabled",
 			self:IsCommanderSkillEnabled() and "enabled" or "disabled",
-			BalanceModeConfig and BalanceModeConfig.BlendAlienCommanderAndFieldSkills and "enabled" or "disabled"
+			BalanceModeConfig and BalanceModeConfig.MarineCommanderSkillBlend
+				or self.CommanderSkillBlendType.COMMANDER_ONLY,
+			BalanceModeConfig and BalanceModeConfig.AlienCommanderSkillBlend
+				or self.CommanderSkillBlendType.COMMANDER_ONLY
 		)
 		Message[ #Message + 1 ] = StringFormat( "Team preference cost weighting: %s. History rounds: %d.",
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )

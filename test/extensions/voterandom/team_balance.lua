@@ -48,9 +48,41 @@ end )
 
 UnitTest:Test( "SkillGetters.GetHiveSkill - Returns blended field and commander skill if blending is applicable and enabled", function( Assert )
 	local Skill = MockShuffle.SkillGetters.GetHiveSkill( MockPlayer, 2, true, true, {
-		BlendAlienCommanderAndFieldSkills = true
+		AlienCommanderSkillBlend = VoteShuffle.CommanderSkillBlendType.AVERAGE
 	} )
 	Assert.Equals( "Should use blended skill", 450, Skill )
+end )
+
+UnitTest:Test( "SkillGetters.GetHiveSkill - Ignores the other team's blending configuration", function( Assert )
+	local Skill = MockShuffle.SkillGetters.GetHiveSkill( MockPlayer, 2, true, true, {
+		MarineCommanderSkillBlend = VoteShuffle.CommanderSkillBlendType.AVERAGE
+	} )
+	Assert.Equals( "Should use commander skill", 400, Skill )
+end )
+
+UnitTest:Test( "SkillGetters.GetHiveSkill - Returns blended field and commander skill for a marine commander", function( Assert )
+	MockPlayer.GetTeamNumber = function() return 1 end
+
+	local Skill = MockShuffle.SkillGetters.GetHiveSkill( MockPlayer, 1, true, true, {
+		MarineCommanderSkillBlend = VoteShuffle.CommanderSkillBlendType.AVERAGE
+	} )
+	Assert.Equals( "Should use blended skill", 1050, Skill )
+end )
+
+UnitTest:Test( "SkillGetters.GetHiveSkill - Blends when the field skill is higher and conditional blending is enabled", function( Assert )
+	local Skill = MockShuffle.SkillGetters.GetHiveSkill( MockPlayer, 2, true, true, {
+		AlienCommanderSkillBlend = VoteShuffle.CommanderSkillBlendType.AVERAGE_IF_FIELD_SKILL_HIGHER
+	} )
+	Assert.Equals( "Should use blended skill", 450, Skill )
+end )
+
+UnitTest:Test( "SkillGetters.GetHiveSkill - Does not blend when the commander skill is higher and conditional blending is enabled", function( Assert )
+	MockPlayer.GetCommanderSkill = function() return 2000 end
+
+	local Skill = MockShuffle.SkillGetters.GetHiveSkill( MockPlayer, 2, true, true, {
+		AlienCommanderSkillBlend = VoteShuffle.CommanderSkillBlendType.AVERAGE_IF_FIELD_SKILL_HIGHER
+	} )
+	Assert.Equals( "Should use commander skill", 1900, Skill )
 end )
 
 UnitTest:Test( "SkillGetters.GetHiveSkill - Returns average commander skill when team skills are disabled", function( Assert )

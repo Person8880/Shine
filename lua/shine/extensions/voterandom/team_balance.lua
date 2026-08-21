@@ -153,6 +153,25 @@ do
 		return nil
 	end
 
+	-- Blending types that are absent here (i.e. COMMANDER_ONLY) use the commander skill as-is.
+	local CommanderSkillBlenders = {
+		[ Plugin.CommanderSkillBlendType.AVERAGE ] = function( CommanderSkill, FieldSkill )
+			return ( CommanderSkill + FieldSkill ) * 0.5
+		end,
+		-- Blend only when doing so raises the value, to avoid rating a commander below their commander skill
+		-- when they rarely leave the command structure.
+		[ Plugin.CommanderSkillBlendType.AVERAGE_IF_FIELD_SKILL_HIGHER ] = function( CommanderSkill, FieldSkill )
+			if FieldSkill <= CommanderSkill then
+				return CommanderSkill
+			end
+			return ( CommanderSkill + FieldSkill ) * 0.5
+		end
+	}
+	local CommanderSkillBlendFields = {
+		"MarineCommanderSkillBlend",
+		"AlienCommanderSkillBlend"
+	}
+
 	BalanceModule.SkillGetters = {
 		GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled, Options )
 			local Client = GetClientForPlayer( Ply )
@@ -177,12 +196,14 @@ do
 						Offset
 					)
 
-					-- If blending is enabled for aliens, take the average of the commander and field skills to account
-					-- for players that leave the hive to fight.
-					if TeamNumber == 2 and Options and Options.BlendAlienCommanderAndFieldSkills then
+					-- If blending is enabled for the team, combine the commander and field skills to account for
+					-- commanders that leave the command structure to fight.
+					local BlendType = Options and Options[ CommanderSkillBlendFields[ TeamNumber ] ]
+					local Blender = CommanderSkillBlenders[ BlendType ]
+					if Blender then
 						local FieldSkill = GetFieldPlayerSkill( Ply, TeamNumber, TeamSkillEnabled )
 						if FieldSkill then
-							return ( FieldSkill + ResolvedCommanderSkill ) * 0.5
+							return Blender( ResolvedCommanderSkill, FieldSkill )
 						end
 					end
 
