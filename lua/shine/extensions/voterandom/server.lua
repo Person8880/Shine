@@ -49,6 +49,13 @@ Plugin.TeamPreferenceWeighting = table.AsEnum{
 Plugin.CommanderSkillBlendType = table.AsEnum{
 	"COMMANDER_ONLY", "AVERAGE", "AVERAGE_IF_FIELD_SKILL_HIGHER"
 }
+-- Plain descriptions of each blend type, for sh_teamstats.
+Plugin.CommanderSkillBlendDescriptions = {
+	[ Plugin.CommanderSkillBlendType.COMMANDER_ONLY ] = "commander skill only",
+	[ Plugin.CommanderSkillBlendType.AVERAGE ] = "average of commander and field skill",
+	[ Plugin.CommanderSkillBlendType.AVERAGE_IF_FIELD_SKILL_HIGHER ] =
+		"average of commander and field skill, only when field skill is higher"
+}
 
 -- These are derived from simulated optimisation results.
 Plugin.TeamPreferenceWeightingValues = {
@@ -1910,16 +1917,30 @@ function Plugin:CreateCommands()
 		end
 
 		local BalanceModeConfig = self:GetBalanceModeConfig()
+		local CommanderSkillEnabled = self:IsCommanderSkillEnabled()
 
 		Message[ #Message + 1 ] = StringFormat(
-			"Team skills are %s. Commander skills are %s. Commander skill blending is %s for marines, %s for aliens.",
+			"Team skills are %s. Commander skills are %s.",
 			self:IsPerTeamSkillEnabled() and "enabled" or "disabled",
-			self:IsCommanderSkillEnabled() and "enabled" or "disabled",
-			BalanceModeConfig and BalanceModeConfig.MarineCommanderSkillBlend
-				or self.CommanderSkillBlendType.COMMANDER_ONLY,
-			BalanceModeConfig and BalanceModeConfig.AlienCommanderSkillBlend
-				or self.CommanderSkillBlendType.COMMANDER_ONLY
+			CommanderSkillEnabled and "enabled" or "disabled"
 		)
+
+		local function DescribeCommanderSkillBlend( FieldName )
+			local BlendType = BalanceModeConfig and BalanceModeConfig[ FieldName ]
+				or self.CommanderSkillBlendType.COMMANDER_ONLY
+			local Description = self.CommanderSkillBlendDescriptions[ BlendType ] or tostring( BlendType )
+
+			if not CommanderSkillEnabled then
+				return Description.." (not used while commander skills are disabled)"
+			end
+
+			return Description
+		end
+
+		Message[ #Message + 1 ] = StringFormat( "Marine commander skill blend: %s.",
+			DescribeCommanderSkillBlend( "MarineCommanderSkillBlend" ) )
+		Message[ #Message + 1 ] = StringFormat( "Alien commander skill blend: %s.",
+			DescribeCommanderSkillBlend( "AlienCommanderSkillBlend" ) )
 		Message[ #Message + 1 ] = StringFormat( "Team preference cost weighting: %s. History rounds: %d.",
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
 		Message[ #Message + 1 ] = StringFormat( "Play with friends cost weighting: %s. Max group size: %d.",
