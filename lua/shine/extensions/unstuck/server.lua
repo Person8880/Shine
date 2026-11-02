@@ -201,6 +201,12 @@ function Plugin:CreateCommands()
 			if Success then
 				self:NotifyTranslated( Client, "SUCCESS" )
 
+				-- Ready room players were respawned by UnstickPlayer, so Player may be gone.
+				local CurrentPlayer = Client:GetControllingPlayer()
+				if ReportStuckSpot and CurrentPlayer then
+					ReportStuckSpot( Client, CurrentPlayer, InitialOrigin )
+				end
+
 				self.NextUsageTimes[ Client ] = Time + self.Config.TimeBetweenUseInSeconds
 			else
 				self:SendTranslatedError( Client, "ERROR_FAIL", {
