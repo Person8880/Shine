@@ -931,12 +931,14 @@ do
 	local OldEventHook = Event.Hook
 	local OldReservedSlot
 
-	local function CheckConnectionAllowed( ID )
-		local Result, Reason = Call( "CheckConnectionAllowed", ID )
+	-- Info is only passed by engine builds 345 and later, it holds the connection's
+	-- ownerUserId, address, hardwareIds and purchaseTime.
+	local function CheckConnectionAllowed( ID, Info )
+		local Result, Reason = Call( "CheckConnectionAllowed", ID, Info )
 
 		if Result ~= nil then return Result, Reason end
 
-		return OldReservedSlot( ID )
+		return OldReservedSlot( ID, Info )
 	end
 
 	-- The game used to keep track of this in Event.HookTable, but now it doesn't...

@@ -55,6 +55,28 @@ local APIs = {
 
 					return Shine.SteamID64ToNS2ID( Lender )
 				end
+			},
+			-- Retrieves the Steam bans of a player.
+			-- Callback returns a table with the fields CommunityBanned, VACBanned, NumberOfVACBans,
+			-- DaysSinceLastBan, NumberOfGameBans and EconomyBan, or false if Steam does not know the player.
+			GetPlayerBans = {
+				Protocol = "GET",
+				URL = "ISteamUser/GetPlayerBans/v1/",
+				Params = {
+					steamids = Shine.NS2IDTo64
+				},
+				DefaultRequestParams = {
+					format = "json"
+				},
+				GetCacheKey = function( Params ) return tostring( Params.steamids ) end,
+				ResponseTransformer = function( Response )
+					-- Do not cache on invalid JSON.
+					if not IsType( Response, "table" ) or not IsType( Response.players, "table" ) then
+						return nil
+					end
+
+					return Response.players[ 1 ] or false
+				end
 			}
 		}
 	},

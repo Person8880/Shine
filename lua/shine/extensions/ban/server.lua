@@ -16,6 +16,7 @@ local Ceil = math.ceil
 local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
 local Max = math.max
+local Min = math.min
 local Notify = Shared.Message
 local pairs = pairs
 local StringFind = string.find
@@ -67,7 +68,14 @@ Plugin.DefaultConfig = {
 	BanSharerOnSharedBan = false,
 	-- Whether to always block players that are playing through family sharing, even
 	-- if the sharer hasn't been banned.
-	AlwaysBlockFamilySharedPlayers = false
+	AlwaysBlockFamilySharedPlayers = false,
+	-- The options below need engine build 345 or later.
+	-- Whether banning a connected player also bans their hardware.
+	BanHardware = true,
+	-- Whether banning a connected player also bans the address they connect from.
+	BanAddresses = false,
+	-- Minimum time in days a player must have owned the game to be allowed to connect.
+	MinGameOwnershipInDays = 0
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -157,12 +165,28 @@ function Plugin:LoadBansFromWeb()
 		end
 
 		local Edited
+		local OldBans = self.Config.Banned
 		if BansData.Banned then
 			Edited = true
 			self.Config.Banned = BansData.Banned
 		elseif BansData[ 1 ] and BansData[ 1 ].id then
 			Edited = true
 			self.Config.Banned = self:NS2ToShine( BansData )
+		end
+
+		if Edited then
+			-- A ban website that does not know about hardware and address bans will not send them back.
+			for ID, BanEntry in pairs( self.Config.Banned ) do
+				local OldEntry = OldBans[ ID ]
+				if IsType( BanEntry, "table" ) and IsType( OldEntry, "table" ) then
+					if not IsType( BanEntry.HardwareIDs, "table" ) or #BanEntry.HardwareIDs == 0 then
+						BanEntry.HardwareIDs = OldEntry.HardwareIDs
+					end
+					if not BanEntry.Address or BanEntry.Address == "" then
+						BanEntry.Address = OldEntry.Address
+					end
+				end
+			end
 		end
 
 		-- Cache the data in case we get a bad response later.
@@ -222,12 +246,16 @@ local function NS2EntryToShineEntry( Table )
 		Reason = Table.reason and tostring( Table.reason ) or nil,
 		BannedBy = Table.bannedby and tostring( Table.bannedby ) or "<unknown>",
 		BannerID = tonumber( Table.bannerid ) or 0,
-		Duration = Duration or 0
+		Duration = Duration or 0,
+		Address = Table.ip and tostring( Table.ip ) or nil,
+		HardwareIDs = IsType( Table.hwids, "table" ) and Table.hwids or nil,
+		Owner = tonumber( Table.owner )
 	}
 end
 
+-- The game stores bans on just an address or hardware under ID 0, those stay with the game.
 local function IsValidSteamID( ID )
-	return StringFind( ID, "^%d+$" )
+	return StringFind( ID, "^%d+$" ) and ID ~= "0"
 end
 
 function Plugin:AddNS2BansIntoTable( VanillaBans, MergedTable )
@@ -328,8 +356,20 @@ function Plugin:ShineToNS2()
 			time = Table.UnbanTime,
 			bannedby = Table.BannedBy,
 			bannerid = Table.BannerID,
-			duration = Table.Duration
+			duration = Table.Duration,
+			ip = Table.Address,
+			hwids = Table.HardwareIDs,
+			owner = Table.Owner
 		}
+	end
+
+	local VanillaBans = Shine.LoadJSONFile( self.VanillaConfig )
+	if IsType( VanillaBans, "table" ) then
+		for i = 1, #VanillaBans do
+			if VanillaBans[ i ].id == 0 then
+				NS2Bans[ #NS2Bans + 1 ] = VanillaBans[ i ]
+			end
+		end
 	end
 
 	Shine.SaveJSONFile( NS2Bans, self.VanillaConfig )
@@ -430,6 +470,31 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 		Issued = Time()
 	}
 
+	local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
+	-- What the engine reported when the player connected, for when they have left since.
+	local Info = self.RecentConnections and self.RecentConnections[ tonumber( ID ) ]
+	local HardwareIDs, Address
+	if Target and not Target:GetIsVirtual() and Server.GetHardwareId then
+		HardwareIDs = {
+			Server.GetHardwareId( Target, 1 ),
+			Server.GetHardwareId( Target, 2 ),
+			Server.GetHardwareId( Target, 3 )
+		}
+		Address = Server.GetClientAddressString( Target )
+	elseif Info then
+		HardwareIDs, Address = Info.hardwareIds, Info.address
+	end
+
+	if HardwareIDs then
+		if self.Config.BanHardware and TableConcat( HardwareIDs ) ~= "" then
+			BanData.HardwareIDs = HardwareIDs
+		end
+
+		if self.Config.BanAddresses and Address ~= "" then
+			BanData.Address = Address
+		end
+	end
+
 	self.Config.Banned[ ID ] = BanData
 	self:SaveConfig()
 	self:AddBanToNetData( BanData )
@@ -452,7 +517,17 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 
 			self:AddBan( Sharer, "<unknown>", Duration, BannedBy, BanningID, "Sharing to a banned account." )
 		end
-		BanSharer( self:CheckFamilySharing( ID, false, BanSharer ) )
+
+		local Owner = Target and Server.GetOwnerUserId and Server.GetOwnerUserId( Target )
+			or Info and Info.ownerUserId or 0
+		if Owner ~= 0 then
+			-- The engine knows who owns the game, so Steam does not need to be asked.
+			if tostring( Owner ) ~= ID then
+				BanSharer( self:IsIDBanned( Owner ), Owner )
+			end
+		else
+			BanSharer( self:CheckFamilySharing( ID, false, BanSharer ) )
+		end
 	end
 
 	if self.OnBannedHookName then
@@ -737,6 +812,69 @@ function Plugin:IsIDBanned( ID )
 	return true
 end
 
+-- A hardware ban applies when this many of its IDs match, so replacing one part does not lift it.
+local HARDWARE_ID_MATCHES = 2
+
+local function HasValue( Table, Value )
+	for i = 1, #Table do
+		if Table[ i ] == Value then return true end
+	end
+	return false
+end
+
+--[[
+	Returns the ban whose address or hardware matches the given connection info, if any.
+]]
+function Plugin:GetBanForConnection( Info )
+	for ID, BanEntry in pairs( self.Config.Banned ) do
+		if not self:IsBanExpired( BanEntry ) then
+			if BanEntry.Address and BanEntry.Address ~= "" and BanEntry.Address == Info.address then
+				return BanEntry
+			end
+
+			if IsType( BanEntry.HardwareIDs, "table" ) then
+				local Known, Matches = 0, 0
+				for i = 1, #BanEntry.HardwareIDs do
+					local HardwareID = BanEntry.HardwareIDs[ i ]
+					if HardwareID ~= "" then
+						Known = Known + 1
+						if HasValue( Info.hardwareIds, HardwareID ) then
+							Matches = Matches + 1
+						end
+					end
+				end
+
+				if Known > 0 and Matches >= Min( Known, HARDWARE_ID_MATCHES ) then
+					return BanEntry
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+local GAME_OWNERSHIP_IMMUNITY_PERMISSION = "sh_ban_game_ownership_immune"
+local SECONDS_PER_DAY = 86400
+
+--[[
+	Rejects players that have owned the game for less time than the config demands.
+	The purchase time is reported by the client, and 0 when unknown.
+]]
+function Plugin:CheckGameOwnership( ID, Info )
+	local MinOwnership = tonumber( self.Config.MinGameOwnershipInDays ) or 0
+	if MinOwnership <= 0 or Info.purchaseTime == 0 then return end
+	if Shine:HasAccess( ID, GAME_OWNERSHIP_IMMUNITY_PERMISSION ) then return end
+
+	local Owned = ( Time() - Info.purchaseTime ) / SECONDS_PER_DAY
+	if Owned < MinOwnership then
+		self:Print( "Rejected %s as they have owned the game for %d days.", true, ID, Owned )
+		return false, StringFormat(
+			"You have to own the game for at least %d days to play on this server.", MinOwnership
+		)
+	end
+end
+
 --[[
 	Checks whether the given ID is family sharing with a banned account.
 ]]
@@ -861,15 +999,48 @@ end
 	Rejects a client if they're on the ban list and still banned.
 	If they're past their ban time, their ban is removed.
 ]]
-function Plugin:CheckConnectionAllowed( ID )
+function Plugin:CheckConnectionAllowed( ID, Info )
 	if self:IsIDBanned( ID ) then
 		return false, self:GetBanMessage( self:GetBanEntry( ID ) )
 	end
 
 	self:RemoveBan( ID )
 
+	-- Engine builds before 345 pass no connection info.
+	if Info then
+		self.RecentConnections = self.RecentConnections or {}
+		self.RecentConnections[ ID ] = Info
+
+		local BanEntry = self:GetBanForConnection( Info )
+		if BanEntry then
+			self:Print( "Rejected %s, address %s, for matching the ban on %s.", true, ID, Info.address, BanEntry.Name or "<unknown>" )
+			return false, self:GetBanMessage( BanEntry )
+		end
+
+		local Allowed, Reason = self:CheckGameOwnership( ID, Info )
+		if Allowed == false then
+			return false, Reason
+		end
+
+	end
+
 	if not self.Config.CheckFamilySharing then return end
 	if self:IsClientImmuneToFamilySharingChecks( ID ) then return end
+
+	if Info and Info.ownerUserId ~= 0 then
+		-- The engine knows who owns the game, so Steam does not need to be asked.
+		if Info.ownerUserId == ID then return end
+
+		if self:IsIDBanned( Info.ownerUserId ) then
+			return false, FAMILY_SHARING_BAN_MESSAGE
+		end
+
+		if self.Config.AlwaysBlockFamilySharedPlayers then
+			return false, FAMILY_SHARING_BLOCKED_MESSAGE
+		end
+
+		return
+	end
 
 	local function OnSharingChecked( IsSharerBanned, Sharer )
 		if not Sharer then return end
