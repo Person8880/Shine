@@ -43,6 +43,7 @@ Plugin.VanillaConfig = "config://BannedPlayers.json" -- Auto-convert the old ban
 Plugin.MAX_BAN_PER_NETMESSAGE = 15
 -- Permission required to receive the ban list.
 Plugin.ListPermission = "sh_unban"
+Plugin.ViewIdentifiersPermission = "sh_ban_view_identifiers"
 
 Plugin.OnBannedHookName = "OnPlayerBanned"
 Plugin.OnUnbannedHookName = "OnPlayerUnbanned"
@@ -1077,6 +1078,19 @@ end
 function Plugin:NetworkBan( BanData, Client )
 	if not Client then return end
 
+	-- The hardware ID hash key is shared by all servers, so whoever sees them can replay them elsewhere.
+	local CanViewIdentifiers = Shine:HasAccess( Client, self.ViewIdentifiersPermission )
+
+	local HardwareIDs = {}
+	if CanViewIdentifiers and IsType( BanData.HardwareIDs, "table" ) then
+		for i = 1, #BanData.HardwareIDs do
+			local HardwareID = tostring( BanData.HardwareIDs[ i ] )
+			if HardwareID ~= "" then
+				HardwareIDs[ #HardwareIDs + 1 ] = HardwareID
+			end
+		end
+	end
+
 	local NetData = {
 		ID = BanData.ID,
 		Name = BanData.Name or "Unknown",
@@ -1085,7 +1099,9 @@ function Plugin:NetworkBan( BanData, Client )
 		BannedBy = BanData.BannedBy or "Unknown",
 		BannerID = BanData.BannerID or 0,
 		Reason = BanData.Reason or "",
-		Issued = BanData.Issued or 0
+		Issued = BanData.Issued or 0,
+		Address = CanViewIdentifiers and BanData.Address and tostring( BanData.Address ) or "",
+		HardwareIDs = TableConcat( HardwareIDs, " " )
 	}
 
 	self:SendNetworkMessage( Client, "BanData", NetData, true )
