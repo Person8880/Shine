@@ -25,6 +25,8 @@
 	"BAN_DURATION_TIP": "Duration: {Duration:Duration:Permanent}",
 	"ISSUED_DATE_TIP": "Issued on: {Date}",
 	"REASON_TIP": "Reason: {Reason}",
+	"ADDRESS_TIP": "IP: {Address}",
+	"HARDWARE_TIP": "HWID: {HardwareIDs}",
 	"SEARCH_HINT": "Search for a ban...",
 	"TOTAL_RESULTS_TIP": "{TotalResults} bans"
 }

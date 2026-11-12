@@ -576,6 +576,18 @@ function Plugin:BuildTooltip( Data )
 		} )
 	end
 
+	if Data.Address and Data.Address ~= "" then
+		Text[ #Text + 1 ] = self:GetInterpolatedPhrase( "ADDRESS_TIP", {
+			Address = Data.Address
+		} )
+	end
+
+	if Data.HardwareIDs and Data.HardwareIDs ~= "" then
+		Text[ #Text + 1 ] = self:GetInterpolatedPhrase( "HARDWARE_TIP", {
+			HardwareIDs = Data.HardwareIDs
+		} )
+	end
+
 	return TableConcat( Text, "\n" )
 end
 

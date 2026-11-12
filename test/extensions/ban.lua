@@ -390,6 +390,131 @@ do
 		Assert.Equals( "Should have kicked the client", "NotBanned", Kicked[ MockClient ] )
 	end )
 
+	local function MakeConnectionInfo()
+		return {
+			ownerUserId = 0,
+			address = "10.0.0.1",
+			hardwareIds = { "aaaa", "bbbb", "cccc" },
+			purchaseTime = 0
+		}
+	end
+
+	local function MakeHardwareBan( HardwareIDs, Address )
+		return {
+			[ "456" ] = {
+				Name = "Evader",
+				BannedBy = "Test",
+				Duration = 0,
+				UnbanTime = 0,
+				Reason = "Testing.",
+				HardwareIDs = HardwareIDs,
+				Address = Address
+			}
+		}
+	end
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects a new account on banned hardware", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = MakeHardwareBan( { "aaaa", "bbbb", "dddd" } )
+
+		local Allowed, Reason = Plugin:CheckConnectionAllowed( 123, MakeConnectionInfo() )
+		Assert.False( "Two matching hardware IDs should be rejected", Allowed )
+		Assert:Equals( "Banned from server by Test permanently: Testing.", Reason )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if only one of several hardware IDs matches", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = MakeHardwareBan( { "aaaa", "eeee", "dddd" } )
+
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123, MakeConnectionInfo() ) )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Ignores hardware IDs the client did not report", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = MakeHardwareBan( { "", "", "" } )
+
+		local Info = MakeConnectionInfo()
+		Info.hardwareIds = { "", "", "" }
+
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123, Info ) )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects a new account on a banned address", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = MakeHardwareBan( nil, "10.0.0.1" )
+
+		Assert.False( "Client should be rejected", ( Plugin:CheckConnectionAllowed( 123, MakeConnectionInfo() ) ) )
+	end )
+
+	UnitTest:Test( "NetworkBan - Sends address and hardware IDs only to admins allowed to see them", function( Assert )
+		local Sent
+		local OldSendNetworkMessage = Plugin.SendNetworkMessage
+		function Plugin:SendNetworkMessage( Client, Name, Data )
+			Sent = Data
+		end
+
+		local Allowed = true
+		local OldHasAccess = Shine.HasAccess
+		function Shine:HasAccess( Client, Permission )
+			return Permission == Plugin.ViewIdentifiersPermission and Allowed
+		end
+
+		local BanEntry = MakeHardwareBan( { "aaaa", "", "cccc" }, "10.0.0.1" )[ "456" ]
+		BanEntry.ID = "456"
+		Plugin:NetworkBan( BanEntry, {} )
+		local Visible = Sent
+
+		Plugin:NetworkBan( { ID = "789", UnbanTime = 0 }, {} )
+		local Plain = Sent
+
+		Allowed = false
+		Plugin:NetworkBan( BanEntry, {} )
+		local Hidden = Sent
+
+		Plugin.SendNetworkMessage = OldSendNetworkMessage
+		Shine.HasAccess = OldHasAccess
+
+		Assert:Equals( "10.0.0.1", Visible.Address )
+		Assert:Equals( "aaaa cccc", Visible.HardwareIDs )
+		Assert:Equals( "", Plain.Address )
+		Assert:Equals( "", Plain.HardwareIDs )
+		Assert:Equals( "", Hidden.Address )
+		Assert:Equals( "", Hidden.HardwareIDs )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects a client the engine reports as sharing from a banned account", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = MakeHardwareBan()
+
+		local Info = MakeConnectionInfo()
+		Info.ownerUserId = 456
+
+		Assert.Nil( "Should not check the owner if CheckFamilySharing = false", Plugin:CheckConnectionAllowed( 123, Info ) )
+
+		Plugin.Config.CheckFamilySharing = true
+
+		local Allowed, Reason = Plugin:CheckConnectionAllowed( 123, Info )
+		Assert.False( "Client should be rejected", Allowed )
+		Assert:Equals( "Family sharing with a banned account.", Reason )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects a client that has not owned the game for long enough", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = {}
+		Plugin.Config.MinGameOwnershipInDays = 30
+
+		local Info = MakeConnectionInfo()
+		Assert.Nil( "An unknown purchase time should not be rejected", Plugin:CheckConnectionAllowed( 123, Info ) )
+
+		Info.purchaseTime = os.time() - 86400
+		Assert.False( "Client should be rejected", ( Plugin:CheckConnectionAllowed( 123, Info ) ) )
+
+		Info.purchaseTime = os.time() - 86400 * 31
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123, Info ) )
+
+		Plugin.Config.MinGameOwnershipInDays = 0
+	end )
+
 	Shine.GetClientByNS2ID = OldGetClientByNS2ID
 
 	UnitTest:ResetState()

@@ -3,6 +3,7 @@
 ]]
 
 local HTTPRequest = Shared.SendHTTPRequest
+local CancelHTTPRequest = Shared.CancelHTTPRequest
 local IsType = Shine.IsType
 local Time = Shared.GetSystemTimeReal
 local Timer = Shine.Timer
@@ -196,16 +197,23 @@ function Shine.TimedHTTPRequest( URL, Protocol, Params, OnResponse, OnTimeout, T
 		xpcall( OnResponse, OnError, Data, ... )
 	end
 
+	local RequestID
 	if Params then
-		HTTPRequest( URL, Protocol, Params, Callback )
+		RequestID = HTTPRequest( URL, Protocol, Params, Callback )
 	else
-		HTTPRequest( URL, Protocol, Callback )
+		RequestID = HTTPRequest( URL, Protocol, Callback )
 	end
 
 	TimeoutTimer = Timer.Simple( Timeout, function()
 		if Succeeded ~= nil then return end
 
 		Succeeded = false
+
+		-- The engine keeps an abandoned request in one of its few in-flight slots until its own timeout, so a retry
+		-- would queue behind the request it replaces. Older engines return no ID and have no cancel function.
+		if RequestID and CancelHTTPRequest then
+			CancelHTTPRequest( RequestID )
+		end
 
 		xpcall( OnTimeout, OnError )
 	end )
