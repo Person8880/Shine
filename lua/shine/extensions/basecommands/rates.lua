@@ -11,7 +11,7 @@ local StringFormat = string.format
 
 local StockRates = { BWLimit = 50, Interp = 100, MoveRate = 26, SendRate = 20, TickRate = 30 }
 -- Interp 0 lets the engine size interp from the send and move rates.
-local BetaRates = { BWLimit = 100, Interp = 0, MoveRate = 60, SendRate = 30, TickRate = 60 }
+local BetaRates = { BWLimit = 120, Interp = 0, MoveRate = 60, SendRate = 60, TickRate = 60 }
 
 -- The higher rates rely on beta engine server work.
 local IsBetaEngine = Shared.GetBuildNumber() >= 345
@@ -160,7 +160,7 @@ function RatesModule:UpgradeStockRates()
 	self:SaveConfig( true )
 
 	Notify( "Saved rates were the stock defaults, replaced with this engine's defaults: tick rate 60, move rate 60, "..
-		"send rate 30, interp auto, bandwidth limit 100 KB/s." )
+		"send rate 60, interp auto, bandwidth limit 120 KB/s." )
 end
 
 function RatesModule:CheckRateValues()
